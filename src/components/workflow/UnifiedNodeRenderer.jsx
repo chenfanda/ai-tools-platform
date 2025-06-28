@@ -1,4 +1,4 @@
-// ===== src/components/workflow/UnifiedNodeRenderer.jsx - 统一节点渲染入口 =====
+// ===== src/components/workflow/UnifiedNodeRenderer.jsx - 干净版本 =====
 
 import React, { memo, useMemo } from 'react'
 
@@ -18,26 +18,7 @@ import BaseWorkflowNode from './nodes/BaseWorkflowNode'
 import unifiedNodeManager from '../../services/workflow/UnifiedNodeManager'
 
 /**
- * 统一节点渲染器 - 统一节点渲染入口
- * 
- * 核心职责：
- * 1. 根据节点类型选择正确的渲染器
- * 2. 提供一致的节点接口
- * 3. 处理通用节点逻辑
- * 4. 降级保护和错误处理
- * 
- * 设计原则：
- * - 智能路由：自动选择传统或动态节点组件
- * - 接口统一：所有节点使用相同的props接口
- * - 错误处理：渲染失败时提供降级组件
- * - 性能优化：组件缓存和渲染优化
- */
-
-/**
  * 节点组件映射表
- * 
- * 这里定义了所有可用的节点组件
- * 优先级：传统组件 > 动态组件 > 降级组件
  */
 const NODE_COMPONENTS = {
   // 传统节点组件
@@ -53,8 +34,6 @@ const NODE_COMPONENTS = {
 
 /**
  * 错误边界组件
- * 
- * 用于捕获节点渲染错误并提供降级显示
  */
 class NodeErrorBoundary extends React.Component {
   constructor(props) {
@@ -106,13 +85,6 @@ class NodeErrorBoundary extends React.Component {
 
 /**
  * 统一节点渲染器主组件
- * 
- * @param {object} props - 节点props
- * @param {string} props.id - 节点ID
- * @param {object} props.data - 节点数据
- * @param {boolean} props.selected - 是否选中
- * @param {string} props.type - 节点类型
- * @returns {React.Component} 渲染的节点组件
  */
 const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
   
@@ -122,7 +94,6 @@ const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
     try {
       // 1. 检查是否为传统节点类型
       if (NODE_COMPONENTS[type]) {
-        console.log(`[UnifiedNodeRenderer] 使用传统组件: ${type}`)
         return {
           component: NODE_COMPONENTS[type],
           type: 'legacy',
@@ -136,7 +107,6 @@ const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
       if (nodeConfig) {
         // 检查是否为动态节点
         if (nodeConfig._source === 'dynamic' || nodeConfig.fields || nodeConfig.sourceType === 'json') {
-          console.log(`[UnifiedNodeRenderer] 使用动态组件: ${type}`)
           return {
             component: DynamicNode,
             type: 'dynamic',
@@ -147,7 +117,6 @@ const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
         
         // 传统节点但可能映射关系缺失
         if (nodeConfig._source === 'legacy') {
-          console.log(`[UnifiedNodeRenderer] 传统节点映射缺失，使用动态组件降级: ${type}`)
           return {
             component: DynamicNode,
             type: 'dynamic-fallback',
@@ -158,7 +127,6 @@ const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
       }
 
       // 3. 最终降级
-      console.warn(`[UnifiedNodeRenderer] 节点类型未识别，使用降级组件: ${type}`)
       return {
         component: BaseWorkflowNode,
         type: 'fallback',
@@ -166,7 +134,6 @@ const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
       }
 
     } catch (error) {
-      console.error(`[UnifiedNodeRenderer] 组件选择失败: ${error.message}`)
       return {
         component: BaseWorkflowNode,
         type: 'error',
@@ -199,20 +166,9 @@ const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
         baseData.nodeConfig = selectedComponent.nodeConfig
       }
 
-      // 添加调试信息
-      if (process.env.NODE_ENV === 'development') {
-        baseData._renderer = {
-          componentType: selectedComponent.type,
-          nodeType: selectedComponent.nodeType,
-          hasConfig: Boolean(selectedComponent.nodeConfig),
-          renderedAt: new Date().toISOString()
-        }
-      }
-
       return baseData
 
     } catch (error) {
-      console.error(`[UnifiedNodeRenderer] 数据标准化失败: ${error.message}`)
       return data // 降级：返回原数据
     }
   }, [data, selectedComponent])
@@ -275,16 +231,15 @@ const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
 
     // 正常组件渲染
     return (
-  <SelectedComponent
-    nodeConfig={standardizedData.nodeConfig}  // ✅ 直接传递 nodeConfig
-    id={id}
-    data={standardizedData}
-    selected={selected}
-    type={type}
-    {...otherProps}
-  />
-)
-    
+      <SelectedComponent
+        nodeConfig={standardizedData.nodeConfig}
+        id={id}
+        data={standardizedData}
+        selected={selected}
+        type={type}
+        {...otherProps}
+      />
+    )
   }
 
   // ===== 主渲染 =====
@@ -298,17 +253,6 @@ const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
         data-node-id={id}
       >
         {renderNode()}
-        
-        {/* 开发环境调试信息 */}
-        {/* {process.env.NODE_ENV === 'development' && (
-          <div 
-            className="absolute top-0 right-0 bg-black bg-opacity-70 text-white text-xs px-1 py-0.5 rounded-bl text-center leading-tight"
-            style={{ fontSize: '10px', maxWidth: '60px' }}
-          >
-            <div>{selectedComponent.type}</div>
-            <div>{type}</div>
-          </div>
-        )} */}
       </div>
     </NodeErrorBoundary>
   )
@@ -316,9 +260,6 @@ const UnifiedNodeRenderer = ({ id, data, selected, type, ...otherProps }) => {
 
 /**
  * 创建节点类型映射对象
- * 
- * 这个函数为 ReactFlow 生成 nodeTypes 对象
- * 所有节点类型都将使用 UnifiedNodeRenderer
  */
 export const createUnifiedNodeTypes = () => {
   try {
@@ -329,7 +270,6 @@ export const createUnifiedNodeTypes = () => {
     const nodeTypes = {}
     
     allNodeTypes.forEach(nodeType => {
-      // 所有节点类型都使用 UnifiedNodeRenderer
       nodeTypes[nodeType.type] = memo((props) => (
         <UnifiedNodeRenderer {...props} />
       ))
@@ -339,8 +279,6 @@ export const createUnifiedNodeTypes = () => {
     nodeTypes['unified-fallback'] = memo((props) => (
       <UnifiedNodeRenderer {...props} />
     ))
-
-    console.log(`[UnifiedNodeRenderer] 创建统一 nodeTypes，包含 ${Object.keys(nodeTypes).length} 个类型`)
     
     return nodeTypes
 
@@ -370,21 +308,8 @@ export const getNodeComponentStats = () => {
       legacyNodes: true,
       dynamicNodes: true,
       errorBoundary: true,
-      fallbackSupport: true,
-      debugMode: process.env.NODE_ENV === 'development'
+      fallbackSupport: true
     }
-  }
-}
-
-/**
- * 开发环境调试工具
- */
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  window.__unifiedNodeRenderer = {
-    components: NODE_COMPONENTS,
-    createNodeTypes: createUnifiedNodeTypes,
-    getStats: getNodeComponentStats,
-    unifiedManager: unifiedNodeManager
   }
 }
 

@@ -1029,18 +1029,50 @@ const DownloadConfig = ({ node, onConfigSave }) => {
   }, [autoDownload, customFileName, customPath, downloadFormat, showProgress, allowRetry, node.data])
 
   // 保存配置
-  const handleSave = () => {
-    const configData = {
-      autoDownload,
-      customFileName,
-      customPath,
-      downloadFormat,
-      showProgress,
-      allowRetry
-    }
-    onConfigSave(node.id, configData)
-    setHasChanges(false)
+// 在 WorkflowConfigPanel.jsx 的 DownloadConfig 组件中修改 handleSave 方法
+
+const handleSave = async () => {
+  const configData = {
+    autoDownload,
+    customFileName,
+    customPath,
+    downloadFormat,
+    showProgress,
+    allowRetry
   }
+  
+  console.log('[DownloadConfig] 保存配置:', configData)
+  
+  // 🔑 关键修复：保存配置同时触发状态刷新
+  await onConfigSave(node.id, {
+    ...configData,
+    _statusUpdateKey: Date.now() // 添加时间戳强制状态更新
+  })
+  
+  setHasChanges(false)
+  
+  // 🔑 额外的状态刷新逻辑
+  setTimeout(async () => {
+    try {
+      const { default: nodeStatusCalculator } = await import('../../services/workflow/NodeStatusCalculator')
+      nodeStatusCalculator.clearCache()
+      console.log('[DownloadConfig] 配置保存后已清除状态缓存')
+      
+      // 🔧 新增：通知父组件刷新节点状态
+      const refreshEvent = new CustomEvent('nodeStatusRefresh', { 
+        detail: { 
+          nodeId: node.id, 
+          nodeType: node.type,
+          timestamp: Date.now()
+        } 
+      })
+      window.dispatchEvent(refreshEvent)
+      
+    } catch (error) {
+      console.warn('[DownloadConfig] 状态刷新失败:', error)
+    }
+  }, 50) // 更短的延迟确保立即生效
+}
 
   // 取消更改
   const handleCancel = () => {

@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 // 导入统一接口层
 import unifiedNodeManager from '../../services/workflow/UnifiedNodeManager'
 import StandardDataModel from '../../services/workflow/StandardDataModel'
+import WorkflowConfigPanel from './WorkflowConfigPanel'
 
 /**
  * 真正的键盘/鼠标分离版配置面板
@@ -15,7 +16,11 @@ import StandardDataModel from '../../services/workflow/StandardDataModel'
  */
 const UnifiedConfigPanel = ({ node, onConfigSave }) => {
   
-  
+  // 传统节点直接使用 WorkflowConfigPanel
+  const legacyNodeTypes = ['text-input', 'tts', 'output', 'download']
+  if (legacyNodeTypes.includes(node?.type)) {
+    return <WorkflowConfigPanel node={node} onConfigSave={onConfigSave} />
+  }
   // ===== 🔧 真正分离：状态 vs ref =====
   const [configData, setConfigData] = useState({})          // 只在鼠标操作时更新
   const [validationErrors, setValidationErrors] = useState({})  // 只在保存时更新

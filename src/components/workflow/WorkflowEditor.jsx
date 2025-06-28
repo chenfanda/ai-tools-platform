@@ -107,61 +107,40 @@ const WorkflowEditor = ({ config, onNotification }) => {
     setExecutionLogs([])
   }, [])
 
-  // 🔧 修复：稳定化验证函数，使用 useRef 缓存
-  const validateCurrentWorkflowRef = useRef()
-  const validateCurrentWorkflow = useCallback(() => {
-    const workflow = { nodes, edges: [] }
-    const validation = workflowValidator.quickValidate(workflow)
-    setWorkflowValidation(validation)
-    return validation
-  }, [nodes])
-  
-  validateCurrentWorkflowRef.current = validateCurrentWorkflow
-
-  // ===== 📌 新：使用统一管理器的位置计算 =====
-  const calculateNodePosition = useCallback((index) => {
-    try {
-      // 通过统一管理器获取传统管理器的布局功能
-      return unifiedNodeManager.legacyManager.calculateNodePosition(index, {
-        startX: 400,
-        startY: 100,
-        verticalSpacing: 180
-      })
-    } catch (error) {
-      // 降级到简单计算
-      return {
+  // ===== 修复：重新计算所有节点数据 =====
+  const recalculateAllNodes = useCallback((nodesList) => {
+    return nodesList.map((node, index) => ({
+      ...node,
+      data: {
+        ...node.data,
+        nodeIndex: index,
+        totalNodes: nodesList.length,
+      },
+      position: {
         x: 400,
-        y: 100 + index * 180
+        y: 100 + index * 200 // 增加间距避免重叠
       }
+    }))
+  }, [])
+
+  // ===== 修复：节点位置计算 =====
+  const calculateNodePosition = useCallback((index) => {
+    return {
+      x: 400,
+      y: 100 + index * 200 // 固定200px间距
     }
   }, [])
 
-  // ===== 📌 新：使用统一管理器的重新布局 =====
+  // ===== 修复：重新布局 =====
   const relayoutNodes = useCallback(() => {
-    setNodes(currentNodes => {
-      try {
-        return unifiedNodeManager.legacyManager.relayoutNodes(currentNodes, {
-          startX: 400,
-          startY: 100,
-          verticalSpacing: 180
-        })
-      } catch (error) {
-        addExecutionLogRef.current(`布局计算失败: ${error.message}`, 'warn')
-        return currentNodes
-      }
-    })
-  }, [setNodes])
+    setNodes(currentNodes => recalculateAllNodes(currentNodes))
+  }, [setNodes, recalculateAllNodes])
 
   // 添加节点后自动调整视图
   const adjustViewAfterNodeChange = useCallback(() => {
     if (reactFlowInstance && nodes.length > 0) {
       // 先让节点布局完成
       setTimeout(() => {
-        // 计算所有节点的边界
-        const nodePositions = nodes.map((_, index) => calculateNodePosition(index))
-        const minY = Math.min(...nodePositions.map(pos => pos.y))
-        const maxY = Math.max(...nodePositions.map(pos => pos.y))
-        
         // 动态调整视图以包含所有节点
         reactFlowInstance.fitView({
           padding: 0.1,
@@ -172,53 +151,60 @@ const WorkflowEditor = ({ config, onNotification }) => {
         })
       }, 100)
     }
-  }, [reactFlowInstance, nodes.length, calculateNodePosition])
+  }, [reactFlowInstance, nodes.length])
 
   // 🔧 修复：稳定化 updateNodeData 函数
   const updateNodeData = useCallback((nodeId, newData) => {
     console.log('[WorkflowEditor] updateNodeData 被调用:', { nodeId, newData })
     
-    setNodes(currentNodes => 
-      currentNodes.map(node => 
+    setNodes(currentNodes => {
+      const updatedNodes = currentNodes.map(node => 
         node.id === nodeId 
           ? { ...node, data: { ...node.data, ...newData } }
           : node
       )
-    )
+      // 重新计算所有节点数据
+      return recalculateAllNodes(updatedNodes)
+    })
     
     // 使用 ref 避免依赖循环
     addExecutionLogRef.current(`节点配置已更新`, 'success')
-    
-    // 延迟验证，避免在状态更新过程中调用
-    setTimeout(() => {
-      validateCurrentWorkflowRef.current()
-    }, 100)
-  }, [setNodes])
+  }, [setNodes, recalculateAllNodes])
 
-  // ===== 📌 新：使用统一管理器创建节点 =====
+  // ===== 修复：添加节点函数 =====
   const addNodeAtPosition = useCallback((nodeType, nodeLabel, insertIndex = null) => {
     try {
+      const targetIndex = insertIndex !== null ? insertIndex + 1 : nodes.length
+      const newNodeId = `${nodeType}-${nodeId}`
+      
       // 使用统一管理器创建节点
       const newNode = unifiedNodeManager.createNode(nodeType, {
-        nodeId: `${nodeType}-${nodeId}`,
-        nodeIndex: insertIndex !== null ? insertIndex + 1 : nodes.length,
+        nodeId: newNodeId,
+        nodeIndex: targetIndex,
         totalNodes: nodes.length + 1,
-        position: calculateNodePosition(insertIndex !== null ? insertIndex + 1 : nodes.length),
+        position: calculateNodePosition(targetIndex),
         config: config,
-        onDataChange: (newData) => updateNodeData(`${nodeType}-${nodeId}`, newData),
+        onDataChange: (newData) => updateNodeData(newNodeId, newData),
         onAddNode: (afterIndex) => openNodeSelector(afterIndex)
       })
 
-      // 使用统一管理器插入节点
+      // 插入新节点
       setNodes(currentNodes => {
-        try {
-          return unifiedNodeManager.legacyManager.insertNodeAtPosition(currentNodes, newNode, insertIndex)
-        } catch (error) {
-          addExecutionLogRef.current(`节点插入失败: ${error.message}`, 'error')
-          // 降级到简单插入
-          const targetIndex = insertIndex !== null ? insertIndex + 1 : currentNodes.length
-          return [...currentNodes.slice(0, targetIndex), newNode, ...currentNodes.slice(targetIndex)]
+        let newNodesList
+        if (insertIndex !== null) {
+          // 插入到指定位置
+          newNodesList = [
+            ...currentNodes.slice(0, targetIndex),
+            newNode,
+            ...currentNodes.slice(targetIndex)
+          ]
+        } else {
+          // 添加到末尾
+          newNodesList = [...currentNodes, newNode]
         }
+        
+        // 重新计算所有节点的索引和位置
+        return recalculateAllNodes(newNodesList)
       })
 
       const logMessage = insertIndex !== null 
@@ -235,12 +221,11 @@ const WorkflowEditor = ({ config, onNotification }) => {
       // 调整视图
       setTimeout(() => {
         adjustViewAfterNodeChange()
-        validateCurrentWorkflowRef.current()
       }, 200)
     } catch (error) {
       addExecutionLogRef.current(`添加节点失败: ${error.message}`, 'error')
     }
-  }, [nodes.length, nodeId, config, adjustViewAfterNodeChange, calculateNodePosition, updateNodeData])
+  }, [nodes.length, nodeId, config, calculateNodePosition, updateNodeData, recalculateAllNodes])
 
   // 节点选择器
   const openNodeSelector = useCallback((afterIndex) => {
@@ -253,35 +238,29 @@ const WorkflowEditor = ({ config, onNotification }) => {
     setInsertAfterIndex(null)
   }, [])
 
-  // ===== 📌 新：使用统一管理器删除节点 =====
+  // ===== 修复：删除节点 =====
   const deleteSelectedNodes = useCallback(() => {
     if (selectedNodes.length === 0) return
     
     const nodeIdsToDelete = selectedNodes.map(node => node.id)
     
-    // 使用统一管理器删除节点
     setNodes(currentNodes => {
-      try {
-        return unifiedNodeManager.legacyManager.deleteNodes(currentNodes, nodeIdsToDelete)
-      } catch (error) {
-        addExecutionLogRef.current(`节点删除失败: ${error.message}`, 'error')
-        // 降级到简单删除
-        return currentNodes.filter(node => !nodeIdsToDelete.includes(node.id))
-      }
+      const remainingNodes = currentNodes.filter(node => !nodeIdsToDelete.includes(node.id))
+      // 重新计算剩余节点的索引和位置
+      return recalculateAllNodes(remainingNodes)
     })
     
     setSelectedNodes([])
     setSelectedNodeForConfig(null)
     addExecutionLogRef.current(`已删除 ${nodeIdsToDelete.length} 个节点`, 'success')
     
-    // 删除后重新调整视图和验证
+    // 调整视图
     setTimeout(() => {
       adjustViewAfterNodeChange()
-      validateCurrentWorkflowRef.current()
     }, 150)
-  }, [selectedNodes, setNodes, adjustViewAfterNodeChange])
+  }, [selectedNodes, setNodes, recalculateAllNodes, adjustViewAfterNodeChange])
 
-  // 选择变化处理
+  // ===== 修复：选择变化处理 =====
   const onSelectionChange = useCallback((selection) => {
     const selectedNodesList = selection?.nodes || []
     setSelectedNodes(selectedNodesList)
@@ -292,10 +271,11 @@ const WorkflowEditor = ({ config, onNotification }) => {
       setRightPanelMode('config')
       setShowLogPanel(true)
       
-      // 更新showAddButton状态
+      // 更新节点状态
       setNodes(currentNodes => 
         currentNodes.map(node => ({
           ...node,
+          selected: node.id === selectedNode.id,
           data: {
             ...node.data,
             showAddButton: node.id === selectedNode.id
@@ -306,10 +286,11 @@ const WorkflowEditor = ({ config, onNotification }) => {
       setSelectedNodeForConfig(null)
       setRightPanelMode('logs')
       
-      // 清除所有showAddButton
+      // 清除所有选中状态
       setNodes(currentNodes => 
         currentNodes.map(node => ({
           ...node,
+          selected: false,
           data: {
             ...node.data,
             showAddButton: false
@@ -326,14 +307,21 @@ const WorkflowEditor = ({ config, onNotification }) => {
     }
   }, [reactFlowInstance, adjustViewAfterNodeChange])
 
-  // 🔧 修复：优化节点数量变化监听
+  // 验证工作流
+  const validateCurrentWorkflow = useCallback(() => {
+    const workflow = { nodes, edges: [] }
+    const validation = workflowValidator.quickValidate(workflow)
+    setWorkflowValidation(validation)
+    return validation
+  }, [nodes])
+
+  // 监听节点变化
   useEffect(() => {
     if (nodes.length > 0) {
       adjustViewAfterNodeChange()
     }
-    // 使用 ref 避免依赖循环
-    validateCurrentWorkflowRef.current()
-  }, [nodes.length, adjustViewAfterNodeChange])
+    validateCurrentWorkflow()
+  }, [nodes.length, adjustViewAfterNodeChange, validateCurrentWorkflow])
 
   // 添加手动重新布局功能
   const handleRelayout = useCallback(() => {
@@ -369,8 +357,153 @@ const WorkflowEditor = ({ config, onNotification }) => {
       return
     }
 
-    // 执行前验证
-    const validation = validateCurrentWorkflowRef.current()
+    addExecutionLogRef.current('开始执行前数据校准和验证...', 'info')
+
+    // 🔑 关键修复：同步数据校准和状态更新
+    let calibratedNodes = nodes
+
+    // 先进行数据校准处理
+    calibratedNodes = nodes.map(node => {
+      const calibratedData = { ...node.data }
+      
+      // 提取直接保存的配置字段
+      const directConfigFields = {}
+      
+      // 根据节点类型提取配置字段
+      switch (node.type) {
+        case 'text-input':
+          if (calibratedData.text !== undefined) {
+            directConfigFields.text = calibratedData.text
+          }
+          break
+          
+        case 'tts':
+          // TTS 节点的所有配置字段
+          const ttsFields = [
+            'mode', 'selectedCharacter', 'character', 'username', 
+            'voice_id', 'gender', 'pitch', 'speed'
+          ]
+          ttsFields.forEach(field => {
+            if (calibratedData[field] !== undefined) {
+              directConfigFields[field] = calibratedData[field]
+            }
+          })
+          break
+          
+        case 'download':
+          // 下载节点的配置字段
+          const downloadFields = [
+            'autoDownload', 'customFileName', 'customPath', 
+            'downloadFormat', 'showProgress', 'allowRetry'
+          ]
+          downloadFields.forEach(field => {
+            if (calibratedData[field] !== undefined) {
+              directConfigFields[field] = calibratedData[field]
+            }
+          })
+          
+          // 🔧 下载节点特殊处理：确保有基本配置
+          if (Object.keys(directConfigFields).length === 0) {
+            // 如果没有任何配置，提供默认配置确保节点可执行
+            directConfigFields.autoDownload = calibratedData.autoDownload !== undefined ? calibratedData.autoDownload : false
+            directConfigFields.downloadFormat = calibratedData.downloadFormat || 'auto'
+            directConfigFields.showProgress = calibratedData.showProgress !== undefined ? calibratedData.showProgress : true
+            directConfigFields.allowRetry = calibratedData.allowRetry !== undefined ? calibratedData.allowRetry : true
+            addExecutionLogRef.current(`[数据校准] ${node.type} 节点使用默认配置`, 'info')
+          }
+          
+          // 🔧 额外调试：输出下载节点的详细状态
+          console.log(`📥 下载节点 ${node.id} 校准详情:`, {
+            原始数据字段: Object.keys(calibratedData),
+            提取的配置: directConfigFields,
+            最终config: { ...calibratedData.config, ...directConfigFields }
+          })
+          break
+          
+        case 'output':
+          // 输出节点通常不需要特殊配置，但保持一致性
+          if (calibratedData.displayMode !== undefined) {
+            directConfigFields.displayMode = calibratedData.displayMode
+          }
+          break
+          
+        default:
+          // 动态节点或其他类型节点的通用处理
+          Object.keys(calibratedData).forEach(key => {
+            // 排除系统字段
+            const systemFields = [
+              'label', 'nodeType', 'nodeIndex', 'totalNodes', 'config',
+              'result', 'isProcessing', 'showAddButton', 'hideTestButton',
+              'onDataChange', 'onAddNode', 'onSetProcessor', '_metadata', 'nodeConfig'
+            ]
+            if (!systemFields.includes(key) && !key.startsWith('_') && !key.startsWith('on')) {
+              directConfigFields[key] = calibratedData[key]
+            }
+          })
+      }
+      
+      // 同步配置到多个位置，确保执行器能找到
+      if (Object.keys(directConfigFields).length > 0) {
+        // 位置1: config 对象中（ConfigurationResolver 优先读取位置）
+        calibratedData.config = {
+          ...calibratedData.config,
+          ...directConfigFields
+        }
+        
+        // 位置2: nodeConfig.defaultData 中（动态节点兼容）
+        if (calibratedData.nodeConfig && calibratedData.nodeConfig.defaultData) {
+          calibratedData.nodeConfig.defaultData = {
+            ...calibratedData.nodeConfig.defaultData,
+            ...directConfigFields
+          }
+        }
+        
+        addExecutionLogRef.current(`[数据校准] ${node.type} 节点配置已同步: ${Object.keys(directConfigFields).join(', ')}`, 'info')
+      }
+      
+      return { ...node, data: calibratedData }
+    })
+
+    // 🔑 关键修复：清除状态缓存，强制重新计算状态
+    try {
+      const { default: nodeStatusCalculator } = await import('../../services/workflow/NodeStatusCalculator')
+      nodeStatusCalculator.clearCache()
+      addExecutionLogRef.current('状态缓存已清除，将重新验证所有节点配置', 'success')
+      
+      // 🔧 新增：强制刷新React组件的状态显示
+      setTimeout(() => {
+        // 触发节点状态重新计算和UI更新
+        setNodes(currentNodes => 
+          currentNodes.map(node => ({
+            ...node,
+            data: {
+              ...node.data,
+              _statusUpdateKey: Date.now() // 添加时间戳强制组件更新
+            }
+          }))
+        )
+        addExecutionLogRef.current('已触发节点状态UI刷新', 'info')
+      }, 100)
+      
+    } catch (error) {
+      addExecutionLogRef.current(`清除状态缓存失败: ${error.message}，但不影响执行`, 'warn')
+    }
+
+    // 🔑 应用校准后的节点数据
+    setNodes(calibratedNodes)
+    
+    // 🔑 等待 React 状态更新完成
+    await new Promise(resolve => setTimeout(resolve, 200))
+    
+    // 🔧 开发环境：暴露节点数据到全局，便于调试
+    if (process.env.NODE_ENV === 'development') {
+      window.__workflowNodes = calibratedNodes
+      window.__originalNodes = nodes
+      console.log('🔧 调试模式：节点数据已暴露到 window.__workflowNodes 和 window.__originalNodes')
+    }
+
+    // 执行前验证 - 使用最新的节点状态
+    const validation = validateCurrentWorkflow()
     if (!validation.canExecute) {
       addExecutionLogRef.current('工作流验证失败，无法执行', 'error')
       validation.criticalErrors.forEach(error => {
@@ -378,15 +511,56 @@ const WorkflowEditor = ({ config, onNotification }) => {
       })
       return
     }
+
+    // 🔑 添加执行前的最终数据一致性检查 - 基于校准后的数据
+    let hasDataInconsistency = false
+    calibratedNodes.forEach((node, index) => {
+      if (node.type === 'text-input') {
+        const hasText = node.data.text || node.data.config?.text
+        if (!hasText || !hasText.trim()) {
+          addExecutionLogRef.current(`第 ${index + 1} 步 (${node.type}): 检测到文本内容为空，实际数据: ${JSON.stringify({
+            text: node.data.text,
+            configText: node.data.config?.text,
+            allKeys: Object.keys(node.data)
+          })}`, 'error')
+          hasDataInconsistency = true
+        } else {
+          addExecutionLogRef.current(`第 ${index + 1} 步 (${node.type}): 文本内容检查通过 (${hasText.length} 字符)`, 'success')
+        }
+      }
+      
+      // 🔧 下载节点特殊检查
+      if (node.type === 'download') {
+        // 下载节点通常不需要严格的配置验证，只要有基本设置就可以执行
+        const hasValidConfig = node.data.config && Object.keys(node.data.config).length > 0
+        if (hasValidConfig) {
+          addExecutionLogRef.current(`第 ${index + 1} 步 (${node.type}): 下载节点配置检查通过`, 'success')
+        } else {
+          addExecutionLogRef.current(`第 ${index + 1} 步 (${node.type}): 下载节点缺少配置，将使用默认设置`, 'info')
+          // 不设置为错误，下载节点可以使用默认配置执行
+        }
+      }
+    })
+    
+    if (hasDataInconsistency) {
+      addExecutionLogRef.current('发现数据不一致，请检查节点配置后重试', 'error')
+      return
+    }
     
     setIsExecuting(true)
-    addExecutionLogRef.current('开始执行工作流...', 'info')
+    addExecutionLogRef.current(`开始执行工作流 (${calibratedNodes.length} 个节点)...`, 'info')
     
     try {
-      await workflowExecutor.executeStackedWorkflow(nodes, addExecutionLogRef.current, setNodes)
-      addExecutionLogRef.current('工作流执行完成', 'success')
+      // 🔑 使用校准后的节点数据执行工作流
+      await workflowExecutor.executeStackedWorkflow(calibratedNodes, addExecutionLogRef.current, setNodes)
+      addExecutionLogRef.current('🎉 工作流执行完成', 'success')
     } catch (error) {
-      addExecutionLogRef.current(`执行失败: ${error.message}`, 'error')
+      addExecutionLogRef.current(`❌ 执行失败: ${error.message}`, 'error')
+      
+      // 输出更详细的错误信息用于调试
+      if (error.stack) {
+        console.error('工作流执行详细错误:', error.stack)
+      }
     } finally {
       setIsExecuting(false)
     }
@@ -594,7 +768,6 @@ const WorkflowEditor = ({ config, onNotification }) => {
         <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">节点工具箱</h3>
-            {/* ===== 📌 新：工具箱状态指示 ===== */}
             <div className={`text-xs px-2 py-0.5 rounded ${
               managerInitialized && !usingFallback
                 ? 'text-green-600 bg-green-100' 
@@ -621,7 +794,6 @@ const WorkflowEditor = ({ config, onNotification }) => {
             ))}
           </div>
           
-          {/* ===== 📌 新：工具箱提示信息 ===== */}
           <div className="mt-8 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-start gap-2">
               <span className="text-blue-500 text-sm">💡</span>
@@ -662,7 +834,7 @@ const WorkflowEditor = ({ config, onNotification }) => {
             <Controls showInteractive={false} />
             <Background variant="dots" gap={20} size={1} color="#e5e7eb" />
             
-            {/* 简化的样式处理 - 基础容器清理 */}
+            {/* 修复节点缩放样式 */}
             <style>{`
               /* 基础节点容器清理 */
               .react-flow__node {
@@ -845,7 +1017,6 @@ const WorkflowEditor = ({ config, onNotification }) => {
                 />
               ) : (
                 <div className="p-4">
-                  {/* ===== 📌 新：使用统一配置面板 ===== */}
                   <UnifiedConfigPanel 
                     node={selectedNodeForConfig} 
                     onConfigSave={updateNodeData} 

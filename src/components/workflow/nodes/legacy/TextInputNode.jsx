@@ -1,4 +1,4 @@
-// ===== src/components/workflow/nodes/TextInputNode.jsx - 重构版本（使用BaseWorkflowNode） =====
+// ===== src/components/workflow/nodes/legacy/TextInputNode.jsx - 干净修复版本 =====
 import React, { useState, memo, useEffect } from 'react'
 import BaseWorkflowNode from '../BaseWorkflowNode'
 
@@ -30,6 +30,9 @@ const TextInputNode = ({ data, selected, id }) => {
 
   // 获取配置状态
   const getStatus = () => {
+    if (data.result?.error) return 'error'
+    if (data.result?.success) return 'success'
+    if (data.isProcessing) return 'processing'
     if (!text || text.trim().length === 0) {
       return 'waiting'
     }
@@ -65,7 +68,9 @@ const TextInputNode = ({ data, selected, id }) => {
         </div>
         
         {/* 文本预览 */}
-        <div className="w-full h-16 px-2 py-1 border border-gray-200 rounded-lg bg-gray-50/70 text-xs overflow-hidden">
+        <div className={`w-full h-16 px-2 py-1 border rounded-lg bg-gray-50/70 text-xs overflow-hidden transition-all duration-300 ${
+          selected ? 'border-purple-300 bg-purple-50/50' : 'border-gray-200'
+        }`}>
           {text ? (
             <div className="text-gray-800 line-clamp-3">
               {text}
@@ -82,7 +87,7 @@ const TextInputNode = ({ data, selected, id }) => {
           <span className="text-gray-500">
             {text.length > 0 ? `${text.length} 字符` : '等待配置'}
           </span>
-          <span className={`px-2 py-0.5 rounded-full text-xs ${
+          <span className={`px-2 py-0.5 rounded-full text-xs transition-all duration-300 ${
             text.length > 0 
               ? 'bg-green-100 text-green-700' 
               : 'bg-yellow-100 text-yellow-700'
@@ -100,6 +105,15 @@ const TextInputNode = ({ data, selected, id }) => {
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        .line-clamp-3 {
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+      `}</style>
     </BaseWorkflowNode>
   )
 }
