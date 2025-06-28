@@ -1,0 +1,501 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Workflow Node Configuration",
+  "description": "JSON Schema for workflow node configuration files - Enhanced with data flow support",
+  "type": "object",
+  "required": ["meta", "node", "components", "data"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "description": "元数据信息",
+      "required": ["configVersion", "nodeId", "displayName"],
+      "properties": {
+        "configVersion": {
+          "type": "string",
+          "description": "配置文件版本",
+          "pattern": "^\\d+\\.\\d+$"
+        },
+        "nodeId": {
+          "type": "string",
+          "description": "节点唯一标识符",
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "节点显示名称",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "description": {
+          "type": "string",
+          "description": "节点描述"
+        },
+        "author": {
+          "type": "string",
+          "description": "节点作者"
+        },
+        "version": {
+          "type": "string",
+          "description": "节点版本",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "tags": {
+          "type": "array",
+          "description": "节点标签",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "description": "节点基础配置",
+      "required": ["type", "label", "icon", "description", "category", "theme"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "节点类型标识",
+          "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+        },
+        "label": {
+          "type": "string",
+          "description": "节点标签",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "icon": {
+          "type": "string",
+          "description": "节点图标 (emoji 或字符)",
+          "minLength": 1,
+          "maxLength": 10
+        },
+        "description": {
+          "type": "string",
+          "description": "节点功能描述",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string",
+          "description": "节点分类",
+          "enum": ["input", "processor", "output", "custom", "ai", "utility"]
+        },
+        "theme": {
+          "type": "string",
+          "description": "节点主题色",
+          "enum": ["blue", "purple", "orange", "green", "red", "gray"]
+        }
+      }
+    },
+    "inputSchema": {
+      "type": "object",
+      "description": "节点输入数据Schema定义",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_]*$": {
+          "type": "object",
+          "description": "输入字段定义",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "数据类型",
+              "enum": [
+                "text", "markdown", "html", "json", "xml",
+                "number", "integer", "float", "boolean",
+                "image", "audio", "video", "file",
+                "array", "object", "url", "email",
+                "date", "time", "datetime",
+                "workflow_context", "node_output", "any", "unknown"
+              ]
+            },
+            "required": {
+              "type": "boolean",
+              "description": "是否必需",
+              "default": false
+            },
+            "description": {
+              "type": "string",
+              "description": "字段描述"
+            },
+            "defaultValue": {
+              "description": "默认值"
+            },
+            "validation": {
+              "type": "object",
+              "description": "验证规则",
+              "properties": {
+                "minLength": { "type": "integer" },
+                "maxLength": { "type": "integer" },
+                "min": { "type": "number" },
+                "max": { "type": "number" },
+                "pattern": { "type": "string" },
+                "enum": { "type": "array" },
+                "format": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "object",
+      "description": "节点输出数据Schema定义",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_]*$": {
+          "type": "object",
+          "description": "输出字段定义",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "数据类型",
+              "enum": [
+                "text", "markdown", "html", "json", "xml",
+                "number", "integer", "float", "boolean",
+                "image", "audio", "video", "file",
+                "array", "object", "url", "email",
+                "date", "time", "datetime",
+                "workflow_context", "node_output", "any", "unknown"
+              ]
+            },
+            "description": {
+              "type": "string",
+              "description": "字段描述"
+            },
+            "optional": {
+              "type": "boolean",
+              "description": "是否可选输出",
+              "default": false
+            }
+          }
+        }
+      }
+    },
+    "fields": {
+      "type": "array",
+      "description": "配置面板字段定义",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "label"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "字段名称",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$"
+          },
+          "type": {
+            "type": "string",
+            "description": "UI字段类型",
+            "enum": [
+              "text", "textarea", "number", "select", "checkbox", 
+              "radio", "range", "image", "audio", "video", "file",
+              "date", "time", "datetime", "color", "url", "email"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "description": "字段显示标签",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "description": "字段说明"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "是否必需",
+            "default": false
+          },
+          "defaultValue": {
+            "description": "默认值"
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "占位符文本"
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "是否禁用",
+            "default": false
+          },
+          "options": {
+            "type": "array",
+            "description": "选项列表 (适用于 select/radio)",
+            "items": {
+              "oneOf": [
+                { "type": "string" },
+                {
+                  "type": "object",
+                  "required": ["value", "label"],
+                  "properties": {
+                    "value": { "type": "string" },
+                    "label": { "type": "string" },
+                    "disabled": { "type": "boolean", "default": false }
+                  }
+                }
+              ]
+            }
+          },
+          "validation": {
+            "type": "object",
+            "description": "字段验证规则",
+            "properties": {
+              "minLength": { "type": "integer" },
+              "maxLength": { "type": "integer" },
+              "min": { "type": "number" },
+              "max": { "type": "number" },
+              "pattern": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          },
+          "accept": {
+            "type": "string",
+            "description": "文件类型限制 (适用于 file 类型)"
+          },
+          "step": {
+            "type": "number",
+            "description": "步长 (适用于 number/range 类型)"
+          },
+          "rows": {
+            "type": "integer",
+            "description": "行数 (适用于 textarea 类型)",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "description": "节点执行配置",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "执行类型",
+          "enum": ["api", "local", "script", "builtin"]
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "API端点 (适用于 api 类型)",
+          "format": "uri"
+        },
+        "method": {
+          "type": "string",
+          "description": "HTTP方法 (适用于 api 类型)",
+          "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+          "default": "POST"
+        },
+        "headers": {
+          "type": "object",
+          "description": "请求头 (适用于 api 类型)",
+          "patternProperties": {
+            "^[a-zA-Z-]+$": { "type": "string" }
+          }
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "超时时间 (秒)",
+          "minimum": 1,
+          "default": 30
+        },
+        "retry": {
+          "type": "integer",
+          "description": "重试次数",
+          "minimum": 0,
+          "default": 0
+        },
+        "handler": {
+          "type": "string",
+          "description": "处理器函数名称 (适用于 local/builtin 类型)"
+        },
+        "script": {
+          "type": "string",
+          "description": "脚本路径或内容 (适用于 script 类型)"
+        },
+        "requestMapping": {
+          "type": "object",
+          "description": "请求数据映射规则",
+          "properties": {
+            "inputMapping": {
+              "type": "object",
+              "description": "输入字段映射",
+              "patternProperties": {
+                "^[a-zA-Z][a-zA-Z0-9_]*$": { "type": "string" }
+              }
+            },
+            "staticParams": {
+              "type": "object",
+              "description": "静态参数"
+            }
+          }
+        },
+        "responseMapping": {
+          "type": "object",
+          "description": "响应数据映射规则",
+          "properties": {
+            "outputMapping": {
+              "type": "object",
+              "description": "输出字段映射",
+              "patternProperties": {
+                "^[a-zA-Z][a-zA-Z0-9_]*$": { "type": "string" }
+              }
+            },
+            "errorPath": {
+              "type": "string",
+              "description": "错误信息路径"
+            }
+          }
+        }
+      }
+    },
+    "nodeUI": {
+      "type": "object",
+      "description": "节点UI显示和交互配置（可选）",
+      "properties": {
+        "showPreview": {
+          "type": "boolean",
+          "description": "是否显示内容预览",
+          "default": true
+        },
+        "previewType": {
+          "type": "string",
+          "description": "预览类型",
+          "enum": ["text", "audio", "video", "image", "file"],
+          "default": "text"
+        },
+        "actions": {
+          "type": "array",
+          "description": "节点操作按钮",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "action"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "操作ID"
+              },
+              "label": {
+                "type": "string",
+                "description": "按钮文本"
+              },
+              "icon": {
+                "type": "string",
+                "description": "按钮图标"
+              },
+              "action": {
+                "type": "string",
+                "description": "操作类型",
+                "enum": ["play", "download", "copy", "preview", "custom"]
+              },
+              "condition": {
+                "type": "string",
+                "description": "显示条件，如 'hasAudio' 或 'status === success'"
+              }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "type": "object",
+      "description": "组件配置",
+      "required": ["main"],
+      "properties": {
+        "main": {
+          "type": "object",
+          "description": "主组件配置",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["reference", "dynamic", "built-in"]
+            },
+            "import": {
+              "type": "string",
+              "description": "组件导入路径"
+            },
+            "fallback": {
+              "type": ["string", "null"],
+              "description": "降级组件类型"
+            }
+          }
+        },
+        "config": {
+          "type": "object",
+          "description": "配置组件",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["reference", "dynamic", "built-in", "none"]
+            },
+            "import": {
+              "type": "string",
+              "description": "配置组件导入路径"
+            },
+            "fallback": {
+              "type": ["string", "null"],
+              "description": "降级配置组件"
+            }
+          }
+        }
+      }
+    },
+    "data": {
+      "type": "object",
+      "description": "数据配置",
+      "required": ["defaultData"],
+      "properties": {
+        "defaultData": {
+          "type": "object",
+          "description": "默认数据对象"
+        },
+        "validation": {
+          "type": "object",
+          "description": "验证规则",
+          "properties": {
+            "required": {
+              "type": "array",
+              "description": "必需字段列表",
+              "items": {
+                "type": "string"
+              }
+            },
+            "rules": {
+              "type": "object",
+              "description": "字段验证规则"
+            }
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "依赖配置",
+      "properties": {
+        "apis": {
+          "type": "array",
+          "description": "API 依赖",
+          "items": {
+            "type": "string"
+          }
+        },
+        "libraries": {
+          "type": "array",
+          "description": "库依赖",
+          "items": {
+            "type": "string"
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "description": "权限要求",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

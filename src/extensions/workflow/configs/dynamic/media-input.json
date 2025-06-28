@@ -1,0 +1,203 @@
+{
+  "meta": {
+    "configVersion": "1.0",
+    "nodeId": "media-input",
+    "displayName": "多媒体输入",
+    "description": "支持文本、图片、音频、视频的输入和预览",
+    "author": "system",
+    "version": "1.0.0",
+    "tags": ["media", "input", "upload", "preview"]
+  },
+  "node": {
+    "type": "media-input",
+    "label": "多媒体输入",
+    "icon": "📁",
+    "description": "上传并预览多媒体文件",
+    "category": "input",
+    "theme": "green"
+  },
+  "inputSchema": {
+    "userInput": {
+      "type": "any",
+      "required": false,
+      "description": "用户输入的内容（可选，用于链式输入）"
+    }
+  },
+  "outputSchema": {
+    "content": {
+      "type": "any",
+      "description": "输出的多媒体内容"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "文件元数据信息"
+    }
+  },
+  "fields": [
+    {
+      "name": "inputType",
+      "type": "select",
+      "label": "输入类型",
+      "defaultValue": "file",
+      "required": true,
+      "options": [
+        { "value": "file", "label": "文件上传" },
+        { "value": "text", "label": "文本输入" },
+        { "value": "url", "label": "URL链接" }
+      ],
+      "description": "选择输入方式"
+    },
+    {
+      "name": "mediaFile",
+      "type": "file",
+      "label": "上传文件",
+      "required": false,
+      "description": "选择要上传的媒体文件",
+      "accept": "image/*,audio/*,video/*,text/*,.pdf,.doc,.docx"
+    },
+    {
+      "name": "textInput",
+      "type": "textarea",
+      "label": "文本内容",
+      "required": false,
+      "placeholder": "请输入文本内容...",
+      "description": "直接输入文本内容",
+      "rows": 4,
+      "validation": {
+        "maxLength": 10000
+      }
+    },
+    {
+      "name": "urlInput",
+      "type": "url",
+      "label": "媒体链接",
+      "required": false,
+      "placeholder": "https://example.com/media.jpg",
+      "description": "输入媒体文件的URL地址",
+      "validation": {
+        "pattern": "^https?://.+"
+      }
+    },
+    {
+      "name": "mediaType",
+      "type": "select",
+      "label": "媒体类型",
+      "defaultValue": "auto",
+      "required": false,
+      "options": [
+        { "value": "auto", "label": "自动检测" },
+        { "value": "text", "label": "文本" },
+        { "value": "image", "label": "图片" },
+        { "value": "audio", "label": "音频" },
+        { "value": "video", "label": "视频" },
+        { "value": "file", "label": "文档" }
+      ],
+      "description": "指定媒体类型（通常自动检测即可）"
+    },
+    {
+      "name": "enablePreview",
+      "type": "checkbox",
+      "label": "启用预览",
+      "defaultValue": true,
+      "required": false,
+      "description": "是否在节点中显示内容预览"
+    },
+    {
+      "name": "outputFormat",
+      "type": "select",
+      "label": "输出格式",
+      "defaultValue": "standard",
+      "required": false,
+      "options": [
+        { "value": "standard", "label": "标准格式" },
+        { "value": "base64", "label": "Base64编码" },
+        { "value": "url", "label": "URL引用" },
+        { "value": "metadata", "label": "仅元数据" }
+      ],
+      "description": "选择数据输出格式"
+    }
+  ],
+  "execution": {
+    "type": "local",
+    "handler": "media_input_processor",
+    "timeout": 30,
+    "retry": 1
+  },
+  "nodeUI": {
+    "showPreview": true,
+    "previewType": "auto",
+    "actions": [
+      {
+        "id": "preview",
+        "label": "预览",
+        "icon": "👁️",
+        "action": "preview",
+        "condition": "hasContent"
+      },
+      {
+        "id": "play",
+        "label": "播放",
+        "icon": "▶️",
+        "action": "play",
+        "condition": "isAudio || isVideo"
+      },
+      {
+        "id": "download",
+        "label": "下载",
+        "icon": "📥",
+        "action": "download",
+        "condition": "hasFile"
+      },
+      {
+        "id": "copy",
+        "label": "复制",
+        "icon": "📋",
+        "action": "copy",
+        "condition": "isText"
+      }
+    ]
+  },
+  "components": {
+    "main": {
+      "type": "dynamic",
+      "fallback": "text-input"
+    },
+    "config": {
+      "type": "dynamic",
+      "fallback": null
+    }
+  },
+  "data": {
+    "defaultData": {
+      "inputType": "file",
+      "mediaFile": null,
+      "textInput": "",
+      "urlInput": "",
+      "mediaType": "auto",
+      "enablePreview": true,
+      "outputFormat": "standard"
+    },
+    "validation": {
+      "required": ["inputType"],
+      "rules": {
+        "inputType": {
+          "type": "string",
+          "enum": ["file", "text", "url"]
+        },
+        "mediaType": {
+          "type": "string",
+          "enum": ["auto", "text", "image", "audio", "video", "file"]
+        },
+        "outputFormat": {
+          "type": "string",
+          "enum": ["standard", "base64", "url", "metadata"]
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "apis": [],
+    "libraries": ["file-type-detection", "media-preview"],
+    "permissions": ["file-read", "url-access"]
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "configVersion": "1.0",
+    "nodeId": "simple-test",
+    "displayName": "简单测试节点",
+    "description": "最简单的文本输入测试节点，用于测试焦点问题",
+    "author": "system",
+    "version": "1.0.0",
+    "tags": ["test", "input", "simple"]
+  },
+  "node": {
+    "type": "simple-test",
+    "label": "简单测试",
+    "icon": "🧪",
+    "description": "仅包含一个文本输入框的测试节点",
+    "category": "test",
+    "theme": "blue"
+  },
+  "inputSchema": {
+    "userInput": {
+      "type": "string",
+      "required": false,
+      "description": "用户输入的测试文本"
+    }
+  },
+  "outputSchema": {
+    "result": {
+      "type": "string",
+      "description": "输出的测试文本"
+    }
+  },
+  "fields": [
+    {
+      "name": "testText",
+      "type": "text",
+      "label": "测试文本",
+      "defaultValue": "请输入测试内容",
+      "required": true,
+      "placeholder": "请连续输入多个字符测试焦点...",
+      "description": "输入测试文本，观察是否会失去焦点",
+      "validation": {
+        "maxLength": 200
+      }
+    }
+  ],
+  "execution": {
+    "type": "local",
+    "handler": "simple_test_processor",
+    "timeout": 5,
+    "retry": 0
+  },
+  "nodeUI": {
+    "showPreview": true,
+    "previewType": "text"
+  },
+  "components": {
+    "main": {
+      "type": "dynamic",
+      "fallback": "text-input"
+    },
+    "config": {
+      "type": "dynamic",
+      "fallback": null
+    }
+  },
+  "data": {
+    "defaultData": {
+      "testText": "请输入测试内容"
+    },
+    "validation": {
+      "required": ["testText"],
+      "rules": {
+        "testText": {
+          "type": "string",
+          "maxLength": 200
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "apis": [],
+    "libraries": [],
+    "permissions": []
+  }
+}

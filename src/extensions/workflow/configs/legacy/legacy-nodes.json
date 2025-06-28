@@ -1,0 +1,634 @@
+{
+  "meta": {
+    "configVersion": "1.0",
+    "description": "传统节点的JSON化配置文件",
+    "author": "WorkflowEditor Team",
+    "version": "1.0.0",
+    "lastUpdated": "2025-01-01",
+    "migrationSource": "LegacyNodesConfig.js",
+    "purpose": "为传统节点提供统一的JSON配置格式，支持渐进迁移"
+  },
+  "nodes": {
+    "text-input": {
+      "meta": {
+        "nodeId": "text-input",
+        "displayName": "文本输入节点",
+        "description": "输入要处理的文本内容",
+        "author": "system",
+        "version": "1.0.0",
+        "tags": ["input", "text", "legacy"]
+      },
+      "node": {
+        "type": "text-input",
+        "label": "文本输入",
+        "icon": "📝",
+        "description": "输入要处理的文本内容",
+        "category": "input",
+        "theme": "purple"
+      },
+      "inputSchema": {
+        "previousOutput": {
+          "type": "any",
+          "required": false,
+          "description": "来自上一个节点的输出"
+        }
+      },
+      "outputSchema": {
+        "text": {
+          "type": "string",
+          "description": "输出的文本内容"
+        }
+      },
+      "fields": [
+        {
+          "name": "text",
+          "type": "textarea",
+          "label": "文本内容",
+          "defaultValue": "",
+          "required": true,
+          "placeholder": "请输入文本内容...",
+          "description": "要处理的文本内容",
+          "validation": {
+            "minLength": 1,
+            "maxLength": 10000
+          }
+        },
+        {
+          "name": "placeholder",
+          "type": "text",
+          "label": "占位符文本",
+          "defaultValue": "请输入文本内容...",
+          "required": false,
+          "description": "输入框的占位符文本"
+        }
+      ],
+      "execution": {
+        "type": "local",
+        "handler": "text_input_processor",
+        "timeout": 5,
+        "retry": 0
+      },
+      "nodeUI": {
+        "showPreview": true,
+        "previewType": "text"
+      },
+      "components": {
+        "main": {
+          "type": "legacy",
+          "component": "TextInputNode"
+        },
+        "config": {
+          "type": "legacy",
+          "fallback": "WorkflowConfigPanel"
+        }
+      },
+      "data": {
+        "defaultData": {
+          "text": "",
+          "placeholder": "请输入文本内容..."
+        },
+        "validation": {
+          "required": ["text"],
+          "rules": {
+            "text": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "dependencies": {
+        "apis": [],
+        "libraries": [],
+        "permissions": []
+      }
+    },
+    "tts": {
+      "meta": {
+        "nodeId": "tts",
+        "displayName": "语音合成节点",
+        "description": "将文本转换为语音",
+        "author": "system",
+        "version": "1.0.0",
+        "tags": ["processor", "tts", "audio", "legacy"]
+      },
+      "node": {
+        "type": "tts",
+        "label": "语音合成",
+        "icon": "🎤",
+        "description": "将文本转换为语音",
+        "category": "processor",
+        "theme": "purple"
+      },
+      "inputSchema": {
+        "text": {
+          "type": "string",
+          "required": true,
+          "description": "要转换为语音的文本"
+        }
+      },
+      "outputSchema": {
+        "audio": {
+          "type": "blob",
+          "description": "生成的音频文件"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "音频元数据"
+        }
+      },
+      "fields": [
+        {
+          "name": "mode",
+          "type": "select",
+          "label": "语音模式",
+          "defaultValue": "character",
+          "required": true,
+          "options": [
+            { "value": "character", "label": "角色模式" },
+            { "value": "custom", "label": "自定义模式" }
+          ],
+          "description": "选择语音合成模式"
+        },
+        {
+          "name": "selectedCharacter",
+          "type": "select",
+          "label": "选择角色",
+          "defaultValue": "",
+          "required": false,
+          "conditionalDisplay": {
+            "field": "mode",
+            "value": "character"
+          },
+          "options": [],
+          "description": "选择预设的语音角色"
+        },
+        {
+          "name": "username",
+          "type": "text",
+          "label": "用户名",
+          "defaultValue": "workflow_user",
+          "required": false,
+          "conditionalDisplay": {
+            "field": "mode",
+            "value": "custom"
+          },
+          "validation": {
+            "minLength": 1
+          },
+          "description": "自定义模式下的用户名"
+        },
+        {
+          "name": "voice_id",
+          "type": "select",
+          "label": "语音ID",
+          "defaultValue": "",
+          "required": false,
+          "conditionalDisplay": {
+            "field": "mode",
+            "value": "custom"
+          },
+          "options": [],
+          "description": "自定义模式下的语音ID"
+        },
+        {
+          "name": "gender",
+          "type": "select",
+          "label": "性别",
+          "defaultValue": "",
+          "required": false,
+          "options": [
+            { "value": "", "label": "默认" },
+            { "value": "male", "label": "男性" },
+            { "value": "female", "label": "女性" }
+          ],
+          "description": "语音性别偏好"
+        },
+        {
+          "name": "pitch",
+          "type": "select",
+          "label": "音调",
+          "defaultValue": "",
+          "required": false,
+          "options": [
+            { "value": "", "label": "默认" },
+            { "value": "low", "label": "低音调" },
+            { "value": "normal", "label": "正常" },
+            { "value": "high", "label": "高音调" }
+          ],
+          "description": "语音音调设置"
+        },
+        {
+          "name": "speed",
+          "type": "select",
+          "label": "语速",
+          "defaultValue": "",
+          "required": false,
+          "options": [
+            { "value": "", "label": "默认" },
+            { "value": "slow", "label": "慢速" },
+            { "value": "normal", "label": "正常" },
+            { "value": "fast", "label": "快速" }
+          ],
+          "description": "语音播放速度"
+        }
+      ],
+      "execution": {
+        "type": "api",
+        "handler": "tts_processor",
+        "timeout": 30,
+        "retry": 2,
+        "requiresApi": true
+      },
+      "nodeUI": {
+        "showPreview": true,
+        "previewType": "audio"
+      },
+      "components": {
+        "main": {
+          "type": "legacy",
+          "component": "TTSNode"
+        },
+        "config": {
+          "type": "legacy",
+          "fallback": "WorkflowConfigPanel"
+        }
+      },
+      "data": {
+        "defaultData": {
+          "mode": "character",
+          "character": "",
+          "selectedCharacter": "",
+          "gender": "",
+          "pitch": "",
+          "speed": "",
+          "username": "workflow_user",
+          "voice_id": "",
+          "result": null
+        },
+        "validation": {
+          "required": ["mode"],
+          "conditionalRequired": {
+            "character": ["selectedCharacter"],
+            "custom": ["username", "voice_id"]
+          },
+          "rules": {
+            "mode": {
+              "type": "string",
+              "enum": ["character", "custom"]
+            },
+            "username": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "dependencies": {
+        "apis": ["ttsApiUrl"],
+        "libraries": [],
+        "permissions": ["audio"]
+      }
+    },
+    "output": {
+      "meta": {
+        "nodeId": "output",
+        "displayName": "结果输出节点",
+        "description": "预览和输出工作流结果",
+        "author": "system",
+        "version": "1.0.0",
+        "tags": ["output", "preview", "legacy"]
+      },
+      "node": {
+        "type": "output",
+        "label": "结果输出",
+        "icon": "👁️",
+        "description": "预览和输出工作流结果",
+        "category": "output",
+        "theme": "orange"
+      },
+      "inputSchema": {
+        "data": {
+          "type": "any",
+          "required": false,
+          "description": "要输出的数据"
+        }
+      },
+      "outputSchema": {
+        "display": {
+          "type": "any",
+          "description": "格式化的显示数据"
+        }
+      },
+      "fields": [
+        {
+          "name": "displayMode",
+          "type": "select",
+          "label": "显示模式",
+          "defaultValue": "auto",
+          "required": false,
+          "options": [
+            { "value": "auto", "label": "自动模式" },
+            { "value": "compact", "label": "紧凑模式" },
+            { "value": "full", "label": "完整模式" }
+          ],
+          "description": "选择结果显示模式"
+        },
+        {
+          "name": "autoExpand",
+          "type": "checkbox",
+          "label": "自动展开",
+          "defaultValue": false,
+          "required": false,
+          "description": "是否自动展开显示内容"
+        },
+        {
+          "name": "showValidation",
+          "type": "checkbox",
+          "label": "显示验证信息",
+          "defaultValue": true,
+          "required": false,
+          "description": "是否显示数据验证信息"
+        },
+        {
+          "name": "downloadEnabled",
+          "type": "checkbox",
+          "label": "启用下载",
+          "defaultValue": true,
+          "required": false,
+          "description": "是否启用结果下载功能"
+        },
+        {
+          "name": "maxPreviewSize",
+          "type": "number",
+          "label": "最大预览大小",
+          "defaultValue": 1000,
+          "required": false,
+          "validation": {
+            "min": 100,
+            "max": 10000
+          },
+          "description": "预览内容的最大字符数"
+        },
+        {
+          "name": "preferredPanel",
+          "type": "select",
+          "label": "首选面板",
+          "defaultValue": "main",
+          "required": false,
+          "options": [
+            { "value": "main", "label": "主面板" },
+            { "value": "side", "label": "侧面板" },
+            { "value": "modal", "label": "模态窗口" }
+          ],
+          "description": "结果显示的首选面板位置"
+        }
+      ],
+      "execution": {
+        "type": "local",
+        "handler": "output_processor",
+        "timeout": 5,
+        "retry": 0
+      },
+      "nodeUI": {
+        "showPreview": true,
+        "previewType": "mixed"
+      },
+      "components": {
+        "main": {
+          "type": "legacy",
+          "component": "OutputNode"
+        },
+        "config": {
+          "type": "legacy",
+          "fallback": "WorkflowConfigPanel"
+        }
+      },
+      "data": {
+        "defaultData": {
+          "displayMode": "auto",
+          "autoExpand": false,
+          "showValidation": true,
+          "downloadEnabled": true,
+          "maxPreviewSize": 1000,
+          "preferredPanel": "main",
+          "result": null,
+          "timestamp": null
+        },
+        "validation": {
+          "required": [],
+          "rules": {
+            "maxPreviewSize": {
+              "type": "number",
+              "min": 100,
+              "max": 10000
+            }
+          }
+        }
+      },
+      "dependencies": {
+        "apis": [],
+        "libraries": [],
+        "permissions": []
+      }
+    },
+    "download": {
+      "meta": {
+        "nodeId": "download",
+        "displayName": "文件下载节点",
+        "description": "下载文件到本地设备",
+        "author": "system",
+        "version": "1.0.0",
+        "tags": ["output", "download", "file", "legacy"]
+      },
+      "node": {
+        "type": "download",
+        "label": "文件下载",
+        "icon": "📥",
+        "description": "下载文件到本地设备",
+        "category": "output",
+        "theme": "green"
+      },
+      "inputSchema": {
+        "file": {
+          "type": "any",
+          "required": false,
+          "description": "要下载的文件数据"
+        }
+      },
+      "outputSchema": {
+        "downloadResult": {
+          "type": "object",
+          "description": "下载操作结果"
+        }
+      },
+      "fields": [
+        {
+          "name": "autoDownload",
+          "type": "checkbox",
+          "label": "自动下载",
+          "defaultValue": false,
+          "required": false,
+          "description": "是否在获得文件后自动下载"
+        },
+        {
+          "name": "customFileName",
+          "type": "text",
+          "label": "自定义文件名",
+          "defaultValue": "",
+          "required": false,
+          "placeholder": "留空使用默认文件名",
+          "validation": {
+            "pattern": "^[^<>:\"/\\\\|?*]*$",
+            "message": "文件名不能包含特殊字符"
+          },
+          "description": "自定义下载文件的名称"
+        },
+        {
+          "name": "customPath",
+          "type": "text",
+          "label": "自定义路径",
+          "defaultValue": "",
+          "required": false,
+          "placeholder": "留空使用默认下载路径",
+          "description": "自定义下载文件的保存路径"
+        },
+        {
+          "name": "downloadFormat",
+          "type": "select",
+          "label": "下载格式",
+          "defaultValue": "auto",
+          "required": false,
+          "options": [
+            { "value": "auto", "label": "自动检测" },
+            { "value": "wav", "label": "WAV 音频" },
+            { "value": "mp3", "label": "MP3 音频" },
+            { "value": "txt", "label": "文本文件" },
+            { "value": "json", "label": "JSON 文件" },
+            { "value": "png", "label": "PNG 图片" },
+            { "value": "jpg", "label": "JPG 图片" }
+          ],
+          "description": "指定下载文件的格式"
+        },
+        {
+          "name": "showProgress",
+          "type": "checkbox",
+          "label": "显示进度",
+          "defaultValue": true,
+          "required": false,
+          "description": "是否显示下载进度"
+        },
+        {
+          "name": "allowRetry",
+          "type": "checkbox",
+          "label": "允许重试",
+          "defaultValue": true,
+          "required": false,
+          "description": "下载失败时是否允许重试"
+        }
+      ],
+      "execution": {
+        "type": "local",
+        "handler": "download_processor",
+        "timeout": 60,
+        "retry": 3
+      },
+      "nodeUI": {
+        "showPreview": true,
+        "previewType": "download"
+      },
+      "components": {
+        "main": {
+          "type": "legacy",
+          "component": "DownloadNode"
+        },
+        "config": {
+          "type": "legacy",
+          "fallback": "WorkflowConfigPanel"
+        }
+      },
+      "data": {
+        "defaultData": {
+          "autoDownload": false,
+          "customFileName": "",
+          "customPath": "",
+          "downloadFormat": "auto",
+          "showProgress": true,
+          "allowRetry": true,
+          "result": null
+        },
+        "validation": {
+          "required": [],
+          "rules": {
+            "customFileName": {
+              "type": "string",
+              "pattern": "^[^<>:\"/\\\\|?*]*$"
+            },
+            "downloadFormat": {
+              "type": "string",
+              "enum": ["auto", "wav", "mp3", "txt", "json", "png", "jpg"]
+            }
+          }
+        }
+      },
+      "dependencies": {
+        "apis": [],
+        "libraries": [],
+        "permissions": ["downloads"]
+      }
+    }
+  },
+  "categories": {
+    "input": {
+      "label": "输入节点",
+      "description": "数据输入和采集节点",
+      "icon": "📝",
+      "color": "#8B5CF6"
+    },
+    "processor": {
+      "label": "处理节点", 
+      "description": "数据处理和转换节点",
+      "icon": "⚙️",
+      "color": "#3B82F6"
+    },
+    "output": {
+      "label": "输出节点",
+      "description": "结果输出和展示节点", 
+      "icon": "📤",
+      "color": "#F97316"
+    }
+  },
+  "themes": {
+    "purple": {
+      "primary": "#8B5CF6",
+      "secondary": "#F3E8FF",
+      "text": "#581C87"
+    },
+    "orange": {
+      "primary": "#F97316", 
+      "secondary": "#FFF7ED",
+      "text": "#9A3412"
+    },
+    "green": {
+      "primary": "#10B981",
+      "secondary": "#ECFDF5", 
+      "text": "#065F46"
+    }
+  },
+  "migration": {
+    "from": "LegacyNodesConfig.js",
+    "to": "JSON Configuration",
+    "status": "completed",
+    "notes": [
+      "所有传统节点已成功转换为JSON配置格式",
+      "保持了原有的功能和验证规则",
+      "添加了更详细的字段定义和UI配置",
+      "支持条件显示和高级验证"
+    ],
+    "compatibility": {
+      "backward": true,
+      "forward": true,
+      "breaking_changes": []
+    }
+  }
+}
