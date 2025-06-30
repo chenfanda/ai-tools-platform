@@ -11,6 +11,11 @@ import { ModuleAdapter } from './ModuleAdapter'
 /**
  * 动态节点适配器 - 基于JSON配置执行节点
  * 继承现有ModuleAdapter模式，保持架构一致性
+ * 
+ * 🔄 重构说明：
+ * - 添加动态handler加载机制
+ * - 保留原有降级逻辑作为安全网
+ * - 接口和行为完全向后兼容
  */
 export class DynamicAdapter extends ModuleAdapter {
   constructor(config) {
@@ -18,16 +23,58 @@ export class DynamicAdapter extends ModuleAdapter {
     this.nodeConfig = config.nodeConfig // JSON配置信息
     this.executorConfig = this.nodeConfig?.execution || {} 
     
+    // 🆕 新增：handler缓存，提高性能
+    this.handlerCache = new Map()
+    
     console.log(`[DynamicAdapter] 初始化动态适配器:`, {
       nodeType: this.nodeConfig?.nodeType,
-      handler: this.executorConfig?.handler
+      handler: this.executorConfig?.handler,
+      cacheEnabled: true
     })
+  }
+
+  /**
+   * 🆕 新增：动态加载handler
+   * 优先尝试从handlers目录加载，失败时降级到内置方法
+   */
+  async loadHandler(handlerName) {
+    // 检查缓存
+    if (this.handlerCache.has(handlerName)) {
+      console.log(`[DynamicAdapter] 从缓存获取handler: ${handlerName}`)
+      return this.handlerCache.get(handlerName)
+    }
+    
+    try {
+      // 尝试动态导入handler
+      const handlerPath = `./handlers/${handlerName}.js`
+      console.log(`[DynamicAdapter] 尝试加载动态handler: ${handlerPath}`)
+      
+      const HandlerModule = await import(handlerPath)
+      const handler = HandlerModule.default || HandlerModule[handlerName]
+      
+      if (typeof handler !== 'function') {
+        throw new Error(`Handler不是有效的函数: ${handlerName}`)
+      }
+      
+      // 缓存handler
+      this.handlerCache.set(handlerName, handler)
+      console.log(`[DynamicAdapter] 动态handler加载成功: ${handlerName}`)
+      
+      return handler
+      
+    } catch (error) {
+      console.warn(`[DynamicAdapter] 动态handler加载失败: ${handlerName}`, error.message)
+      console.log(`[DynamicAdapter] 将降级到内置handler`)
+      
+      // 返回null，表示需要降级到内置方法
+      return null
+    }
   }
 
   async preprocessInput(workflowData) {
     console.log(`[DynamicAdapter] 预处理输入数据:`, workflowData)
     
-    // 构建处理所需的完整输入数据
+    // 构建处理所需的完整输入数据 - 保持原有格式
     const processedInput = {
       workflowData: workflowData,
       nodeConfig: this.nodeConfig,
@@ -53,7 +100,20 @@ export class DynamicAdapter extends ModuleAdapter {
     
     console.log(`[DynamicAdapter] 执行处理器: ${handler}`)
     
-    // 简单的handler映射，基于现有模式
+    // 🆕 新增：尝试动态加载handler
+    const dynamicHandler = await this.loadHandler(handler)
+    if (dynamicHandler) {
+      console.log(`[DynamicAdapter] 使用动态handler: ${handler}`)
+      try {
+        return await dynamicHandler(input)
+      } catch (error) {
+        console.error(`[DynamicAdapter] 动态handler执行失败: ${handler}`, error)
+        throw error
+      }
+    }
+    
+    // 🔄 保留：原有的降级逻辑，确保向后兼容
+    console.log(`[DynamicAdapter] 降级到内置handler: ${handler}`)
     switch (handler) {
       case 'asr_transcribe_handler':
         return await this.executeASRRequest(input)
@@ -86,6 +146,8 @@ export class DynamicAdapter extends ModuleAdapter {
     console.log(`[DynamicAdapter] 输出标准化完成:`, workflowData.getPreview())
     return workflowData
   }
+
+  // ===== 以下保持原有的内置handler方法不变，作为降级方案 =====
 
   /**
    * ASR语音识别处理器
@@ -168,10 +230,10 @@ export class DynamicAdapter extends ModuleAdapter {
   }
 
   /**
-   * 文本处理器
+   * 文本处理器 - 保留作为降级方案
    */
   async executeTextProcess(input) {
-    console.log(`[DynamicAdapter] 执行文本处理`)
+    console.log(`[DynamicAdapter] 执行文本处理 (内置降级方案)`)
     
     // 提取文本内容
     let text = ''
@@ -199,7 +261,7 @@ export class DynamicAdapter extends ModuleAdapter {
       text = text.substring(0, config.maxLength)
     }
     
-    console.log(`[DynamicAdapter] 文本处理完成:`, {
+    console.log(`[DynamicAdapter] 文本处理完成 (内置):`, {
       originalLength: input.workflowData?.length || 'unknown',
       processedLength: text.length
     })
@@ -279,5 +341,23 @@ export class DynamicAdapter extends ModuleAdapter {
         execution_time: Date.now() - startTime
       };
     }
+  }
+
+  /**
+   * 🆕 新增：获取handler缓存状态（调试用）
+   */
+  getHandlerCacheStatus() {
+    return {
+      cacheSize: this.handlerCache.size,
+      cachedHandlers: Array.from(this.handlerCache.keys())
+    }
+  }
+
+  /**
+   * 🆕 新增：清除handler缓存（调试用）
+   */
+  clearHandlerCache() {
+    this.handlerCache.clear()
+    console.log(`[DynamicAdapter] Handler缓存已清除`)
   }
 }

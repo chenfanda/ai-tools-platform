@@ -119,7 +119,7 @@
   ],
   "execution": {
     "type": "local",
-    "handler": "media_input_processor",
+    "handler": "media_input_handler",
     "timeout": 30,
     "retry": 1
   },

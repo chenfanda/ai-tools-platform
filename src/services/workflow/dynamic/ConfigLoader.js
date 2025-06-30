@@ -20,7 +20,8 @@ class ConfigLoader {
     // 新增节点时只需在此添加文件名
     this.knownConfigFiles = [
       'media-input.json',
-       'simple-test.json'
+       'simple-test.json',
+       'asr-node.json'
       // 新增节点文件名在此添加
     ]
     

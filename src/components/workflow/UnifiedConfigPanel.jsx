@@ -783,7 +783,267 @@ function renderField(field, value, error, onChange, onBlur, onFocus) {
           </div>
         </FieldContainer>
       )
+    case 'file':
+      return (
+        <FieldContainer>
+          <input
+            id={fieldId}
+            type="file"
+            onChange={(e) => {
+              const file = e.target.files[0]
+              if (file) {
+                // 可以选择存储文件名或创建 URL
+                onChange(field.name, file.name)
+                // 或者存储文件对象（如果需要）
+                // onChange(field.name, file)
+              }
+            }}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            accept={field.accept}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {value && (
+            <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-600">📎</span>
+                <span className="text-sm text-gray-800 truncate">{value}</span>
+              </div>
+            </div>
+          )}
+          <div className="text-xs text-gray-500 mt-1">
+            {field.accept ? `支持格式: ${field.accept}` : '支持各种文件格式'}
+          </div>
+        </FieldContainer>
+      )
 
+    case 'url':
+      return (
+        <FieldContainer>
+          <input
+            id={fieldId}
+            type="url"
+            defaultValue={value || ''}
+            onChange={(e) => onChange(field.name, e.target.value)}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            placeholder={field.placeholder || 'https://example.com'}
+            className={baseClassName}
+          />
+        </FieldContainer>
+      )
+
+    case 'image':
+      return (
+        <FieldContainer>
+          <input
+            id={fieldId}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files[0]
+              if (file) {
+                const imageUrl = URL.createObjectURL(file)
+                onChange(field.name, imageUrl)
+              }
+            }}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {value && (
+            <div className="mt-2">
+              <img 
+                src={value} 
+                alt="预览" 
+                className="max-w-32 max-h-32 object-cover rounded border border-gray-200 shadow-sm" 
+              />
+            </div>
+          )}
+          <div className="text-xs text-gray-500 mt-1">
+            支持 JPG、PNG、GIF 等图片格式
+          </div>
+        </FieldContainer>
+      )
+
+    case 'audio':
+      return (
+        <FieldContainer>
+          <input
+            id={fieldId}
+            type="file"
+            accept="audio/*"
+            onChange={(e) => {
+              const file = e.target.files[0]
+              if (file) {
+                const audioUrl = URL.createObjectURL(file)
+                onChange(field.name, audioUrl)
+              }
+            }}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {value && (
+            <div className="mt-2">
+              <audio controls className="w-full">
+                <source src={value} />
+                您的浏览器不支持音频播放
+              </audio>
+            </div>
+          )}
+          <div className="text-xs text-gray-500 mt-1">
+            支持 MP3、WAV、OGG 等音频格式
+          </div>
+        </FieldContainer>
+      )
+
+    case 'video':
+      return (
+        <FieldContainer>
+          <input
+            id={fieldId}
+            type="file"
+            accept="video/*"
+            onChange={(e) => {
+              const file = e.target.files[0]
+              if (file) {
+                const videoUrl = URL.createObjectURL(file)
+                onChange(field.name, videoUrl)
+              }
+            }}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {value && (
+            <div className="mt-2">
+              <video controls className="max-w-64 max-h-32 rounded border border-gray-200">
+                <source src={value} />
+                您的浏览器不支持视频播放
+              </video>
+            </div>
+          )}
+          <div className="text-xs text-gray-500 mt-1">
+            支持 MP4、WebM、OGV 等视频格式
+          </div>
+        </FieldContainer>
+      )
+
+    case 'date':
+      return (
+        <FieldContainer>
+          <input
+            id={fieldId}
+            type="date"
+            defaultValue={value || ''}
+            onChange={(e) => onChange(field.name, e.target.value)}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            className={baseClassName}
+          />
+        </FieldContainer>
+      )
+
+    case 'time':
+      return (
+        <FieldContainer>
+          <input
+            id={fieldId}
+            type="time"
+            defaultValue={value || ''}
+            onChange={(e) => onChange(field.name, e.target.value)}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            className={baseClassName}
+          />
+        </FieldContainer>
+      )
+
+    case 'datetime':
+      return (
+        <FieldContainer>
+          <input
+            id={fieldId}
+            type="datetime-local"
+            defaultValue={value || ''}
+            onChange={(e) => onChange(field.name, e.target.value)}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            className={baseClassName}
+          />
+        </FieldContainer>
+      )
+
+    case 'color':
+      return (
+        <FieldContainer>
+          <div className="flex gap-2">
+            <input
+              id={fieldId}
+              type="color"
+              defaultValue={value || '#000000'}
+              onChange={(e) => onChange(field.name, e.target.value)}
+              onBlur={onBlur}
+              onFocus={onFocus}
+              className="w-16 h-10 border border-gray-300 rounded cursor-pointer"
+            />
+            <input
+              type="text"
+              defaultValue={value || '#000000'}
+              onChange={(e) => onChange(field.name, e.target.value)}
+              placeholder="#000000"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            点击色块选择颜色，或直接输入十六进制颜色值
+          </div>
+        </FieldContainer>
+      )
+
+    case 'email':
+      return (
+        <FieldContainer>
+          <input
+            id={fieldId}
+            type="email"
+            defaultValue={value || ''}
+            onChange={(e) => onChange(field.name, e.target.value)}
+            onBlur={onBlur}
+            onFocus={onFocus}
+            placeholder={field.placeholder || '请输入邮箱地址'}
+            className={baseClassName}
+          />
+        </FieldContainer>
+      )
+
+    case 'radio':
+      return (
+        <FieldContainer>
+          <div className="space-y-2">
+            {field.options?.map(option => {
+              const optionValue = typeof option === 'string' ? option : option.value
+              const optionLabel = typeof option === 'string' ? option : option.label
+              return (
+                <label key={optionValue} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={fieldId}
+                    value={optionValue}
+                    defaultChecked={value === optionValue}
+                    onChange={(e) => onChange(field.name, e.target.value)}
+                    onBlur={onBlur}
+                    onFocus={onFocus}
+                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{optionLabel}</span>
+                </label>
+              )
+            })}
+          </div>
+        </FieldContainer>
+      )
     default:
       return (
         <FieldContainer>

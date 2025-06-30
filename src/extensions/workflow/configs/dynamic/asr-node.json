@@ -6,8 +6,7 @@
     "description": "支持多语言的语音转文字识别",
     "author": "workflow-system",
     "version": "1.0.0",
-    "tags": ["asr", "speech", "transcribe"],
-    "sourceType": "json"
+    "tags": ["asr", "speech", "transcribe"]
   },
   "node": {
     "type": "asr-node", 
@@ -17,11 +16,28 @@
     "category": "ai",
     "theme": "green"
   },
+  "inputSchema": {
+    "audioInput": {
+      "type": "audio",
+      "required": true,
+      "description": "需要识别的音频文件"
+    }
+  },
+  "outputSchema": {
+    "transcription": {
+      "type": "text",
+      "description": "语音识别结果文本"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "识别置信度",
+      "optional": true
+    }
+  },
   "fields": [
     {
       "name": "language",
-      "type": "text",
-      "uiType": "select",
+      "type": "select",
       "label": "识别语言",
       "defaultValue": "zh",
       "required": false,
@@ -35,8 +51,7 @@
     },
     {
       "name": "format",
-      "type": "text", 
-      "uiType": "select",
+      "type": "select",
       "label": "输出格式",
       "defaultValue": "txt",
       "required": false,
@@ -47,27 +62,60 @@
       "description": "选择识别结果的输出格式"
     }
   ],
+  "execution": {
+    "type": "api",
+    "handler": "asr_transcribe_handler",
+    "endpoint": "http://localhost:8002/transcribe",
+    "method": "POST",
+    "contentType": "multipart/form-data",
+    "timeout": 30,
+    "retry": 1
+  },
+  "nodeUI": {
+    "showPreview": true,
+    "previewType": "text",
+    "actions": [
+      {
+        "id": "transcribe",
+        "label": "开始识别",
+        "icon": "🎙️",
+        "action": "execute",
+        "condition": "hasAudioInput"
+      }
+    ]
+  },
+  "components": {
+    "main": {
+      "type": "dynamic",
+      "fallback": "text-input"
+    },
+    "config": {
+      "type": "dynamic",
+      "fallback": null
+    }
+  },
   "data": {
     "defaultData": {
       "language": "zh",
       "format": "txt"
     },
     "validation": {
-      "required": []
+      "required": [],
+      "rules": {
+        "language": {
+          "type": "string",
+          "enum": ["zh", "en", "ja", "ko"]
+        },
+        "format": {
+          "type": "string",
+          "enum": ["txt", "json"]
+        }
+      }
     }
   },
-  "executorConfig": {
-    "handler": "asr_transcribe_handler",
-    "endpoint": "http://localhost:8002/transcribe",
-    "method": "POST",
-    "contentType": "multipart/form-data"
-  },
-  "components": {
-    "main": {
-      "type": "DynamicNode"
-    },
-    "config": {
-      "type": "DynamicConfigPanel"
-    }
+  "dependencies": {
+    "apis": ["asr-service"],
+    "libraries": [],
+    "permissions": ["network-access", "file-read"]
   }
 }
