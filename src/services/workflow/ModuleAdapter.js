@@ -706,7 +706,7 @@ export class DownloadAdapter extends ModuleAdapter {
     const jsonContent = JSON.stringify(source, null, 2);
     const blob = new Blob([jsonContent], { type: 'application/json' });
     
-    downloadInfo.url = URL.createObjectURL(blModuleAdapter.jsob);
+    downloadInfo.url = URL.createObjectURL(blob);
     downloadInfo.size = blob.size;
     downloadInfo.canDownload = true;
     downloadInfo.format = 'json';

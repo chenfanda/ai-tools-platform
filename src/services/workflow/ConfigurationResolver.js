@@ -300,7 +300,8 @@ class ConfigurationResolver {
         config: resolvedConfig,
         metadata: configMetadata,
         validation: this.getStandardValidationRules(nodeData),
-        schema: this.getStandardConfigSchema(nodeData)
+        schema: this.getStandardConfigSchema(nodeData),
+        nodeConfig: data.nodeConfig  
       }
 
     } catch (error) {

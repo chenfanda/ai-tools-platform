@@ -136,16 +136,18 @@ class DynamicExecutor {
    */
   static validateExecutionConfig(fullConfig, nodeType) {
     try {
-      // 检查 execution 配置
-      const executionConfig = fullConfig.execution
-      
-      if (!executionConfig) {
-        throw new Error(`动态节点缺少执行配置: ${nodeType}`)
+    // 检查 execution 配置
+    let executionConfig = fullConfig.execution
+    
+    // 🔧 修复：如果没有 execution 配置，提供默认配置
+    if (!executionConfig) {
+      this.log(`节点 ${nodeType} 缺少 execution 配置，使用默认配置`, 'warn')
+      executionConfig = {
+        type: 'local',
+        handler: 'executeGenericProcessor',
+        timeout: 30
       }
-      
-      if (!executionConfig.handler) {
-        throw new Error(`动态节点缺少处理器配置: ${nodeType}`)
-      }
+    }
       
       // 验证处理器类型
       const handler = executionConfig.handler

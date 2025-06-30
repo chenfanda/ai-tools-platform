@@ -16,7 +16,7 @@ export class DynamicAdapter extends ModuleAdapter {
   constructor(config) {
     super(config)
     this.nodeConfig = config.nodeConfig // JSON配置信息
-    this.executorConfig = this.nodeConfig?.executorConfig || {}
+    this.executorConfig = this.nodeConfig?.execution || {} 
     
     console.log(`[DynamicAdapter] 初始化动态适配器:`, {
       nodeType: this.nodeConfig?.nodeType,
@@ -91,60 +91,60 @@ export class DynamicAdapter extends ModuleAdapter {
    * ASR语音识别处理器
    * 复用TTSAdapter的HTTP请求模式
    */
-  async executeASRRequest(input) {
-    console.log(`[DynamicAdapter] 执行ASR请求`)
+ async executeASRRequest(input) {
+  console.log(`[DynamicAdapter] 执行ASR请求`)
+  
+  try {
+    // 构建FormData请求，模仿TTSAdapter的模式
+    const formData = new FormData()
     
-    try {
-      // 构建FormData请求，模仿TTSAdapter的模式
-      const formData = new FormData()
-      
-      // 提取音频文件
-      const audioFile = await this.extractAudioFile(input.workflowData)
-      formData.append('file', audioFile)
-      
-      // 添加用户配置参数
-      formData.append('language', input.userConfig.language || 'zh')
-      formData.append('format', input.userConfig.format || 'txt')
-      
-      console.log(`[DynamicAdapter] ASR请求参数:`, {
-        language: input.userConfig.language || 'zh',
-        format: input.userConfig.format || 'txt',
-        hasAudioFile: !!audioFile
-      })
-      
-      // 发送HTTP请求
-      const response = await fetch('http://localhost:8002/transcribe', {
-        method: 'POST',
-        body: formData
-      })
-      
-      if (!response.ok) {
-        let errorMessage = `ASR请求失败: ${response.status}`
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.detail || errorData.message || errorMessage
-        } catch (e) {
-          // 解析失败，使用默认消息
-        }
-        throw new Error(errorMessage)
+    // 提取音频文件
+    const audioFile = await this.extractAudioFile(input.workflowData)
+    formData.append('file', audioFile)
+    
+    // 添加用户配置参数
+    formData.append('language', input.userConfig.language || 'zh')
+    formData.append('format', input.userConfig.format || 'txt')
+    
+    console.log(`[DynamicAdapter] ASR请求参数:`, {
+      language: input.userConfig.language || 'zh',
+      format: input.userConfig.format || 'txt',
+      hasAudioFile: !!audioFile
+    })
+    
+    // 发送HTTP请求
+    const response = await fetch('http://localhost:8002/transcribe', {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (!response.ok) {
+      let errorMessage = `ASR请求失败: ${response.status}`
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.detail || errorData.message || errorMessage
+      } catch (e) {
+        // 解析失败，使用默认消息
       }
-      
-      // 处理响应
-      const result = input.userConfig.format === 'json' ? 
-        await response.json() : await response.text()
-      
-      console.log(`[DynamicAdapter] ASR请求成功:`, {
-        resultType: typeof result,
-        resultLength: typeof result === 'string' ? result.length : 'N/A'
-      })
-      
-      return result
-      
-    } catch (error) {
-      console.error(`[DynamicAdapter] ASR请求失败:`, error)
-      throw error
+      throw new Error(errorMessage)
     }
+    
+    // 处理响应
+    const result = input.userConfig.format === 'json' ? 
+      await response.json() : await response.text()
+    
+    console.log(`[DynamicAdapter] ASR请求成功:`, {
+      resultType: typeof result,
+      resultLength: typeof result === 'string' ? result.length : 'N/A'
+    })
+    
+    return result
+    
+  } catch (error) {
+    console.error(`[DynamicAdapter] ASR请求失败:`, error)
+    throw error
   }
+}
 
   /**
    * 多媒体输入处理器

@@ -256,7 +256,7 @@ class DynamicNodeInitializer {
             defaultData: config.data?.defaultData || {},
             validation: config.data?.validation || {},
             meta: config.meta,
-            // 🔧 重要：确保使用动态组件
+            execution: config.execution,  // 🔧 添加这一行
             component: null,  // 让系统自动分配 DynamicNode
             configComponent: 'DynamicConfigPanel'
           })

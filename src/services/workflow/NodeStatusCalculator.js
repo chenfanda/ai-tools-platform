@@ -548,72 +548,50 @@ class NodeStatusCalculator {
   /**
    * 验证动态节点配置
    */
-  validateDynamicConfiguration(nodeConfig, config, validation) {
-    try {
-      if (!nodeConfig || !nodeConfig.fields) {
-        return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.INVALID, {
-          reason: 'Missing node configuration or fields definition'
-        })
-      }
-
-      const missingRequired = []
-      const invalidFields = []
-
-      // 检查必需字段
-      if (validation.required) {
-        validation.required.forEach(fieldName => {
-          const value = config[fieldName]
-          if (!value || (typeof value === 'string' && !value.trim())) {
-            missingRequired.push(fieldName)
-          }
-        })
-      }
-
-      // 验证字段值
-      nodeConfig.fields.forEach(field => {
-        const value = config[field.name]
-        
-        if (value !== undefined && field.validation) {
-          if (field.validation.pattern && !new RegExp(field.validation.pattern).test(value)) {
-            invalidFields.push(field.name)
-          }
-          
-          if (field.validation.minLength && value.length < field.validation.minLength) {
-            invalidFields.push(field.name)
-          }
-          
-          if (field.validation.maxLength && value.length > field.validation.maxLength) {
-            invalidFields.push(field.name)
-          }
-        }
-      })
-
-      if (missingRequired.length > 0) {
-        return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.WAITING, {
-          reason: 'Required fields missing',
-          missingFields: missingRequired
-        })
-      }
-
-      if (invalidFields.length > 0) {
-        return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.INVALID, {
-          reason: 'Field validation failed',
-          invalidFields
-        })
-      }
-
-      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.CONFIGURED, {
-        reason: 'Dynamic node properly configured',
-        validatedFields: nodeConfig.fields.length
-      })
-
-    } catch (error) {
-      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.ERROR, {
-        reason: 'Dynamic configuration validation failed',
-        error: error.message
+validateDynamicConfiguration(nodeConfig, config, validation) {
+  try {
+    if (!nodeConfig || !nodeConfig.fields) {
+      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.INVALID, {
+        reason: 'Missing node configuration or fields definition'
       })
     }
+
+    const missingRequired = []
+    
+    // 🔧 修复：只检查必需字段，而不是所有字段
+    if (validation.required) {
+      validation.required.forEach(fieldName => {
+        const value = config[fieldName]
+        // 🔧 修复：检查是否有默认值
+        const field = nodeConfig.fields.find(f => f.name === fieldName)
+        const hasDefaultValue = field?.defaultValue !== undefined
+        
+        // 只有在没有值且没有默认值时才报错
+        if (!value && !hasDefaultValue && value !== 0 && value !== false) {
+          missingRequired.push(fieldName)
+        }
+      })
+    }
+
+    if (missingRequired.length > 0) {
+      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.WAITING, {
+        reason: 'Required fields missing',
+        missingFields: missingRequired
+      })
+    }
+
+    return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.CONFIGURED, {
+      reason: 'Dynamic node properly configured',
+      validatedFields: nodeConfig.fields.length
+    })
+
+  } catch (error) {
+    return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.ERROR, {
+      reason: 'Dynamic configuration validation failed',
+      error: error.message
+    })
   }
+}
 
   /**
    * 通用配置验证

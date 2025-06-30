@@ -81,7 +81,53 @@ class DynamicNodeRegistry {
     this.dataTypes = DATA_TYPES
     
     this.log('[DynamicNodeRegistry] 动态节点注册表已初始化（统一接口版本）')
+    this.initializeConfigs()
   }
+
+async initializeConfigs() {
+  try {
+    this.log('开始加载动态节点配置...')
+    
+    const { default: ConfigLoader } = await import('./ConfigLoader')
+    const configLoader = new ConfigLoader()
+    const loadResults = await configLoader.loadAllConfigs()
+    
+    for (const configItem of loadResults.configs) {
+      const { config } = configItem
+      
+      if (config && config.meta && config.meta.nodeId) {
+        // 🔧 修复：完整保留所有 JSON 配置，不要丢弃 execution
+        this.registerFullNodeConfig(config.meta.nodeId, {
+          // 保留完整的原始配置
+          ...config,
+          
+          // 添加注册表需要的字段
+          type: config.meta.nodeId,
+          component: 'DynamicNode',
+          configComponent: 'DynamicConfigPanel',
+          sourceType: 'json',
+          
+          // 从 node 部分提取必要字段
+          label: config.node?.label || config.meta.displayName,
+          icon: config.node?.icon || '⚙️',
+          description: config.node?.description || config.meta.description,
+          category: config.node?.category || 'general',
+          theme: config.node?.theme || 'blue',
+          
+          // 保留 data 部分
+          defaultData: config.data?.defaultData || {}
+        })
+        
+        this.log(`配置注册成功: ${config.meta.nodeId}`, 'success')
+      }
+    }
+    
+    this.log(`配置加载完成: ${loadResults.summary.success} 成功`)
+    
+  } catch (error) {
+    this.log(`配置加载失败: ${error.message}`, 'error')
+  }
+}
 
   /**
    * 调试日志输出
@@ -762,13 +808,21 @@ registerFullNodeConfig(type, config) {
     // 注册到 NodeManager（复用现有逻辑）
     this.legacyManager.registerNodeType(type, nodeManagerConfig)
 
-    // 缓存完整配置
+    // 缓存完整配置 - 修复版本
     this.fullConfigs.set(type, {
+      ...config,  // 🔑 首先保留完整原始配置
       type,
-      component: finalComponent, // 🔧 使用处理后的组件
+      component: finalComponent,
       configComponent,
-      sourceType, // 🔧 保留 sourceType
-      ...nodeManagerConfig
+      sourceType,
+      // 🔧 只覆盖必要字段，不影响 execution
+      label,
+      icon,
+      description,
+      theme,
+      category,
+      defaultData,
+      validation
     })
 
     this.clearNodeTypesCache()

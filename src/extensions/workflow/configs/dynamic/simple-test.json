@@ -45,7 +45,7 @@
   ],
   "execution": {
     "type": "local",
-    "handler": "simple_test_processor",
+    "handler": "text_process_handler",
     "timeout": 5,
     "retry": 0
   },

@@ -298,7 +298,7 @@ const WorkflowEditor = ({ config, onNotification }) => {
         }))
       )
     }
-  }, [setNodes])
+  }, [])
 
   // 视图控制 - 增强版本
   const fitViewToNodes = useCallback(() => {
@@ -855,9 +855,7 @@ const WorkflowEditor = ({ config, onNotification }) => {
               
               /* TTS 节点需要更高的高度 */
               .react-flow__node[data-nodetype="tts"] {
-                height: 200px !important;
-                min-height: 200px !important;
-                max-height: 200px !important;
+              
               }
               
               /* 移除所有默认状态样式 */
