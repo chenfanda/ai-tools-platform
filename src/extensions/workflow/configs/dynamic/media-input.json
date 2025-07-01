@@ -3,16 +3,16 @@
     "configVersion": "1.0",
     "nodeId": "media-input",
     "displayName": "多媒体输入",
-    "description": "支持文本、图片、音频、视频的输入和预览",
+    "description": "支持音频文件上传，为ASR节点提供标准格式输出",
     "author": "system",
-    "version": "1.0.0",
-    "tags": ["media", "input", "upload", "preview"]
+    "version": "1.1.0",
+    "tags": ["media", "input", "upload", "audio"]
   },
   "node": {
     "type": "media-input",
     "label": "多媒体输入",
     "icon": "📁",
-    "description": "上传并预览多媒体文件",
+    "description": "上传音频文件并传递给下游节点",
     "category": "input",
     "theme": "green"
   },
@@ -20,13 +20,13 @@
     "userInput": {
       "type": "any",
       "required": false,
-      "description": "用户输入的内容（可选，用于链式输入）"
+      "description": "用户输入的内容（可选）"
     }
   },
   "outputSchema": {
     "content": {
-      "type": "any",
-      "description": "输出的多媒体内容"
+      "type": "File",
+      "description": "标准File对象，可直接传递给ASR节点"
     },
     "metadata": {
       "type": "object",
@@ -42,7 +42,6 @@
       "required": true,
       "options": [
         { "value": "file", "label": "文件上传" },
-        { "value": "text", "label": "文本输入" },
         { "value": "url", "label": "URL链接" }
       ],
       "description": "选择输入方式"
@@ -50,54 +49,18 @@
     {
       "name": "mediaFile",
       "type": "file",
-      "label": "上传文件",
+      "label": "上传音频文件",
       "required": false,
-      "description": "选择要上传的媒体文件",
-      "accept": "image/*,audio/*,video/*,text/*,.pdf,.doc,.docx"
-    },
-    {
-      "name": "textInput",
-      "type": "textarea",
-      "label": "文本内容",
-      "required": false,
-      "placeholder": "请输入文本内容...",
-      "description": "直接输入文本内容",
-      "rows": 4,
-      "validation": {
-        "maxLength": 10000
-      }
+      "description": "选择要上传的音频文件",
+      "accept": "audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg"
     },
     {
       "name": "urlInput",
-      "type": "url",
-      "label": "媒体链接",
+      "type": "url", 
+      "label": "音频链接",
       "required": false,
-      "placeholder": "https://example.com/media.jpg",
-      "description": "输入媒体文件的URL地址"
-    },
-    {
-      "name": "mediaType",
-      "type": "select",
-      "label": "媒体类型",
-      "defaultValue": "auto",
-      "required": false,
-      "options": [
-        { "value": "auto", "label": "自动检测" },
-        { "value": "text", "label": "文本" },
-        { "value": "image", "label": "图片" },
-        { "value": "audio", "label": "音频" },
-        { "value": "video", "label": "视频" },
-        { "value": "file", "label": "文档" }
-      ],
-      "description": "指定媒体类型（通常自动检测即可）"
-    },
-    {
-      "name": "enablePreview",
-      "type": "checkbox",
-      "label": "启用预览",
-      "defaultValue": true,
-      "required": false,
-      "description": "是否在节点中显示内容预览"
+      "placeholder": "https://example.com/audio.wav",
+      "description": "输入音频文件的URL地址"
     },
     {
       "name": "outputFormat",
@@ -106,12 +69,19 @@
       "defaultValue": "standard",
       "required": false,
       "options": [
-        { "value": "standard", "label": "标准格式" },
+        { "value": "standard", "label": "标准File对象（推荐）" },
         { "value": "base64", "label": "Base64编码" },
-        { "value": "url", "label": "URL引用" },
-        { "value": "metadata", "label": "仅元数据" }
+        { "value": "url", "label": "Blob URL" }
       ],
-      "description": "选择数据输出格式"
+      "description": "选择传递给下游节点的格式"
+    },
+    {
+      "name": "enablePreview",
+      "type": "checkbox",
+      "label": "启用预览",
+      "defaultValue": true,
+      "required": false,
+      "description": "是否显示音频预览播放器"
     }
   ],
   "execution": {
@@ -122,21 +92,14 @@
   },
   "nodeUI": {
     "showPreview": true,
-    "previewType": "auto",
+    "previewType": "audio",
     "actions": [
-      {
-        "id": "preview",
-        "label": "预览",
-        "icon": "👁️",
-        "action": "preview",
-        "condition": "hasContent"
-      },
       {
         "id": "play",
         "label": "播放",
         "icon": "▶️",
         "action": "play",
-        "condition": "isAudio || isVideo"
+        "condition": "isAudio"
       },
       {
         "id": "download",
@@ -144,13 +107,6 @@
         "icon": "📥",
         "action": "download",
         "condition": "hasFile"
-      },
-      {
-        "id": "copy",
-        "label": "复制",
-        "icon": "📋",
-        "action": "copy",
-        "condition": "isText"
       }
     ]
   },
@@ -168,33 +124,27 @@
     "defaultData": {
       "inputType": "file",
       "mediaFile": null,
-      "textInput": "",
       "urlInput": "",
-      "mediaType": "auto",
-      "enablePreview": true,
-      "outputFormat": "standard"
+      "outputFormat": "standard",
+      "enablePreview": true
     },
     "validation": {
       "required": ["inputType"],
       "rules": {
         "inputType": {
           "type": "string",
-          "enum": ["file", "text", "url"]
-        },
-        "mediaType": {
-          "type": "string",
-          "enum": ["auto", "text", "image", "audio", "video", "file"]
+          "enum": ["file", "url"]
         },
         "outputFormat": {
           "type": "string",
-          "enum": ["standard", "base64", "url", "metadata"]
+          "enum": ["standard", "base64", "url"]
         }
       }
     }
   },
   "dependencies": {
     "apis": [],
-    "libraries": ["file-type-detection", "media-preview"],
+    "libraries": ["audio-preview"],
     "permissions": ["file-read", "url-access"]
   }
 }

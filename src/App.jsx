@@ -9,12 +9,19 @@ function App() {
   // 全局状态
   const [currentPage, setCurrentPage] = useState('home')
   const [configPanelOpen, setConfigPanelOpen] = useState(false)
+  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
   const [config, setConfig] = useState({
-    ttsApiUrl: 'http://localhost:8000',
-    videoApiUrl: 'http://localhost:8001',
-    asrApiUrl: 'http://localhost:8002',
-    imageApiUrl: 'http://localhost:8003'
+    ttsApiUrl: isProduction ? 'https://tts-api.181901.xyz' : 'http://localhost:8000',
+    videoApiUrl: isProduction ? 'https://videos-api.181901.xyz' : 'http://localhost:8001',
+    asrApiUrl: isProduction ? 'https://asr-api.181901.xyz' : 'http://localhost:8002',
+    imageApiUrl: isProduction ? 'https://images-api.181901.xyz' : 'http://localhost:8003'
   })
+  // const [config, setConfig] = useState({
+  //   ttsApiUrl: 'http://localhost:8000',
+  //   videoApiUrl: 'http://localhost:8001',
+  //   asrApiUrl: 'http://localhost:8002',
+  //   imageApiUrl: 'http://localhost:8003'
+  // })
   const [notifications, setNotifications] = useState([])
 
   // 初始化配置

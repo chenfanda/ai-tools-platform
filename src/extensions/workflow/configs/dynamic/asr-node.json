@@ -3,34 +3,39 @@
     "configVersion": "1.0",
     "nodeId": "asr-node",
     "displayName": "ASR语音识别节点",
-    "description": "支持多语言的语音转文字识别",
+    "description": "调用本地ASR API进行语音转文字识别",
     "author": "workflow-system",
-    "version": "1.0.0",
-    "tags": ["asr", "speech", "transcribe", "whisper"]
+    "version": "1.1.0",
+    "tags": ["asr", "speech", "transcribe", "api"]
   },
   "node": {
     "type": "asr-node", 
     "label": "语音识别",
     "icon": "🎙️",
-    "description": "将音频文件转换为文字",
+    "description": "将音频文件转换为文字（支持中英日韩）",
     "category": "ai",
     "theme": "green"
   },
   "inputSchema": {
     "audioData": {
-      "type": "any",
+      "type": "File",
       "required": true,
-      "description": "来自多媒体节点的音频数据"
+      "description": "来自多媒体节点的音频File对象"
     }
   },
   "outputSchema": {
     "transcription": {
-      "type": "text",
+      "type": "string",
       "description": "语音识别结果文本"
     },
     "confidence": {
       "type": "number",
-      "description": "识别置信度",
+      "description": "识别置信度（仅JSON格式）",
+      "optional": true
+    },
+    "metadata": {
+      "type": "object",
+      "description": "识别元数据",
       "optional": true
     }
   },
@@ -57,9 +62,18 @@
       "required": false,
       "options": [
         { "value": "txt", "label": "纯文本格式" },
-        { "value": "json", "label": "详细JSON格式" }
+        { "value": "json", "label": "详细JSON格式（含置信度）" }
       ],
       "description": "选择识别结果的输出格式"
+    },
+    {
+      "name": "apiEndpoint",
+      "type": "text",
+      "label": "API地址",
+      "_originalValue": "http://localhost:8002/transcribe",
+      "defaultValue": "https://asr-api.181901.xyz/transcribe",
+      "required": false,
+      "description": "ASR服务的API端点地址"
     }
   ],
   "execution": {
@@ -84,7 +98,7 @@
         "label": "测试连接",
         "icon": "🔗",
         "action": "test",
-        "condition": "hasApiEndpoint"
+        "condition": "always"
       }
     ]
   },
@@ -101,7 +115,8 @@
   "data": {
     "defaultData": {
       "language": "zh",
-      "format": "txt"
+      "format": "txt",
+      "apiEndpoint": "http://localhost:8002/transcribe"
     },
     "validation": {
       "required": [],
@@ -113,6 +128,10 @@
         "format": {
           "type": "string", 
           "enum": ["txt", "json"]
+        },
+        "apiEndpoint": {
+          "type": "string",
+          "pattern": "^https?://.+"
         }
       }
     }
@@ -120,6 +139,6 @@
   "dependencies": {
     "apis": ["asr-service"],
     "libraries": [],
-    "permissions": ["network-access", "file-read"]
+    "permissions": ["network-access"]
   }
 }

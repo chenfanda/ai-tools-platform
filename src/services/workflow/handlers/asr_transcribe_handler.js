@@ -1,161 +1,260 @@
 /**
- * 简化的ASR Handler - 只处理文件，不管其他复杂格式
+ * ASR语音识别Handler - 专门对接本地ASR API
+ * 
+ * API规格：
+ * - 端点：POST http://localhost:8002/transcribe
+ * - 输入：FormData {file: File, language: string, format: string}
+ * - 输出：string (txt格式) 或 {text: string, confidence: number} (json格式)
  */
 
 export default async function asrTranscribeHandler(input) {
-  console.log(`[asrTranscribeHandler] === 开始执行 ===`)
-  
-  // 立即打印所有输入信息
-  console.log('[DEBUG] 完整的input对象:', input)
-  console.log('[DEBUG] input的类型:', typeof input)
-  console.log('[DEBUG] input的键:', Object.keys(input || {}))
+  console.log(`[asrTranscribeHandler] === 开始执行ASR识别 ===`)
   
   const { workflowData, userConfig } = input
   
-  console.log('[DEBUG] workflowData:', workflowData)
-  console.log('[DEBUG] workflowData类型:', typeof workflowData)
-  console.log('[DEBUG] userConfig:', userConfig)
+  // 🔧 正确提取用户配置
+  const actualUserConfig = userConfig?.userConfig || userConfig?.configResult?.config || userConfig || {}
+  const language = actualUserConfig.language || 'zh'
+  const format = actualUserConfig.format || 'txt'
+  const defaultEndpoint = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    ? 'https://asr-api.181901.xyz/transcribe'
+    : 'http://localhost:8002/transcribe';
+  const apiEndpoint = actualUserConfig.apiEndpoint || defaultEndpoint
   
-  // 如果workflowData有内容，详细分析
-  if (workflowData) {
-    console.log('[DEBUG] workflowData详细分析:')
-    console.log('- typeof:', typeof workflowData)
-    console.log('- constructor:', workflowData.constructor?.name)
-    console.log('- instanceof File:', workflowData instanceof File)
-    console.log('- instanceof Blob:', workflowData instanceof Blob)
-    if (typeof workflowData === 'object') {
-      console.log('- keys:', Object.keys(workflowData))
-      console.log('- 完整对象:', workflowData)
-    }
-  }
-  
+  console.log('[DEBUG] ASR配置:', { language, format, apiEndpoint })
+  console.log('[DEBUG] 输入数据:', {
+    workflowDataType: typeof workflowData,
+    hasContent: !!workflowData?.content,
+    hasMetadata: !!workflowData?.metadata,
+    dataType: workflowData?.type
+  })
+
   try {
-    // 获取用户配置
-    const actualUserConfig = userConfig.userConfig || userConfig.configResult?.config || userConfig
-    const language = actualUserConfig.language || 'zh'
-    const format = actualUserConfig.format || 'txt'
-    
-    console.log('[DEBUG] ASR配置:', { language, format })
-    console.log('[DEBUG] 接收到的数据:', {
-      workflowDataType: typeof workflowData,
-      hasContent: !!workflowData?.content,
-      contentType: typeof workflowData?.content
-    })
-    
-    // 找到音频文件
-    let audioFile = null
-    
-    // 🎯 关键修复：多媒体节点输出格式是 {content: File, metadata: {...}}
-    if (workflowData?.content) {
-      console.log('[DEBUG] 从多媒体节点输出的content字段提取音频')
-      audioFile = await extractAudioFile(workflowData.content)  // 添加 await
-    } 
-    // 向后兼容：直接处理workflowData
-    else if (workflowData) {
-      console.log('[DEBUG] 直接从workflowData提取音频')
-      audioFile = await extractAudioFile(workflowData)  // 添加 await
-    }
-    else {
-      throw new Error('没有接收到音频数据')
-    }
+    // 🎯 关键：从多媒体节点输出中提取音频文件（现在支持异步）
+    const audioFile = await extractAudioFile(workflowData)
     
     if (!audioFile) {
-      throw new Error('无法提取音频文件')
+      throw new Error('没有接收到有效的音频文件，请确保上游连接了多媒体输入节点')
     }
     
-    console.log('[DEBUG] 音频文件:', {
+    console.log('[DEBUG] ✅ 成功提取音频文件:', {
       name: audioFile.name,
       size: audioFile.size,
-      type: audioFile.type
+      type: audioFile.type,
+      isLocalFile: audioFile.isLocalFile || false
     })
     
-    // 发送到ASR API
-    const formData = new FormData()
-    formData.append('file', audioFile)
+    // 🚀 调用ASR API
+    const transcriptionResult = await callASRAPI(audioFile, language, format, apiEndpoint)
     
-    const url = new URL('http://localhost:8002/transcribe')
-    url.searchParams.set('language', language)
-    url.searchParams.set('format', format)
+    console.log('[DEBUG] ✅ ASR识别成功')
     
-    console.log('[DEBUG] 发送API请求:', url.toString())
-    
-    const response = await fetch(url.toString(), {
-      method: 'POST',
-      body: formData
+    // 🎯 返回标准化结果
+    return formatASRResult(transcriptionResult, format, {
+      language,
+      format,
+      audioFileName: audioFile.name,
+      audioSize: audioFile.size
     })
-    
-    if (!response.ok) {
-      throw new Error(`ASR API失败: ${response.status}`)
-    }
-    
-    // 处理响应
-    const result = format === 'json' ? await response.json() : await response.text()
-    
-    console.log('[DEBUG] ASR识别成功')
-    
-    // 返回标准格式
-    return {
-      transcription: typeof result === 'string' ? result : (result.text || JSON.stringify(result)),
-      confidence: typeof result === 'object' ? result.confidence : null
-    }
     
   } catch (error) {
-    console.error(`[asrTranscribeHandler] 失败:`, error)
+    console.error(`[asrTranscribeHandler] ❌ 识别失败:`, error)
     throw new Error(`语音识别失败: ${error.message}`)
   }
 }
 
 /**
- * 简化的音频提取 - 专门处理多媒体节点的输出
+ * 🔑 从多媒体节点输出中提取音频文件（异步版本）
  */
-async function extractAudioFile(data) {
-  console.log('[DEBUG] 提取音频文件:', {
-    type: typeof data,
-    isFile: data instanceof File,
-    isBlob: data instanceof Blob,
-    constructor: data?.constructor?.name,
-    hasPath: !!data?.path,
-    isLocalFile: !!data?.isLocalFile
+async function extractAudioFile(workflowData) {
+  console.log('[DEBUG] 提取音频文件，数据结构:', {
+    type: typeof workflowData,
+    hasContent: !!workflowData?.content,
+    contentType: typeof workflowData?.content,
+    isFile: workflowData?.content instanceof File,
+    isDirectFile: workflowData instanceof File,
+    workflowDataType: workflowData?.type
   })
   
-  // 1. 直接是File对象 - 多媒体节点standard格式输出
-  if (data instanceof File) {
-    console.log('[DEBUG] ✅ 找到File对象:', data.name)
-    return data
+  // 🆕 0. WorkflowData 标准格式：{type: 'audio', content: {audio: {...}}}
+  if (workflowData?.type === 'audio' && workflowData?.content?.audio) {
+    console.log('[DEBUG] ✅ 从 WorkflowData 标准格式提取音频')
+    const audioData = workflowData.content.audio
+    
+    if (audioData.url) {
+      console.log('[DEBUG] 通过 URL 创建 File 对象:', audioData.url)
+      try {
+        const response = await fetch(audioData.url)
+        const blob = await response.blob()
+        const file = new File([blob], audioData.name || 'audio.wav', {
+          type: audioData.type || 'audio/wav'
+        })
+        console.log('[DEBUG] ✅ URL 转换为 File 成功:', file.name)
+        return file
+      } catch (error) {
+        console.error('[DEBUG] URL 转换失败:', error)
+        throw new Error('无法从音频 URL 创建文件对象')
+      }
+    }
   }
   
-  // 2. 直接是Blob对象
-  if (data instanceof Blob) {
-    console.log('[DEBUG] ✅ 找到Blob对象，转换为File')
-    return new File([data], 'audio.wav', { type: data.type || 'audio/wav' })
+  // 1. 多媒体节点标准输出：{content: File, metadata: {...}}
+  if (workflowData?.content instanceof File) {
+    console.log('[DEBUG] ✅ 从多媒体节点标准输出提取File对象')
+    return workflowData.content
   }
   
-  // 3. Base64格式 - 多媒体节点base64格式输出
-  if (typeof data === 'string' && data.startsWith('data:')) {
-    console.log('[DEBUG] ✅ 找到Base64数据，转换为File')
-    const response = await fetch(data)
-    const blob = await response.blob()
-    return new File([blob], 'audio.wav', { type: 'audio/wav' })
+  // 2. 直接的File对象（向后兼容）
+  if (workflowData instanceof File) {
+    console.log('[DEBUG] ✅ 直接File对象')
+    return workflowData
   }
   
-  // 4. URL格式 - 多媒体节点url格式输出  
-  if (typeof data === 'string' && (data.startsWith('http') || data.startsWith('blob:'))) {
-    console.log('[DEBUG] ✅ 找到URL，下载转换为File')
-    const response = await fetch(data)
-    const blob = await response.blob()
-    return new File([blob], 'audio.wav', { type: blob.type || 'audio/wav' })
+  // 3. Base64格式（如果多媒体节点输出base64）
+  if (typeof workflowData?.content === 'string' && workflowData.content.startsWith('data:')) {
+    console.log('[DEBUG] ✅ Base64格式，转换为File对象')
+    return base64ToFile(workflowData.content, 'audio.wav')
   }
   
-  // 5. 本地文件路径字符串
-  if (typeof data === 'string' && data.match(/\.(wav|mp3|m4a|aac|flac|ogg)$/i)) {
-    console.log('[DEBUG] ⚠️ 本地文件路径，创建空File对象:', data)
-    const file = new File([''], data, { type: 'audio/wav' })
-    file.path = data
-    file.isLocalFile = true
-    return file
+  // 4. URL格式（如果多媒体节点输出blob URL）
+  if (typeof workflowData?.content === 'string' && workflowData.content.startsWith('blob:')) {
+    console.log('[DEBUG] ✅ Blob URL格式，转换为File对象')
+    try {
+      const response = await fetch(workflowData.content)
+      const blob = await response.blob()
+      return new File([blob], 'audio.wav', { type: blob.type || 'audio/wav' })
+    } catch (error) {
+      throw new Error('Blob URL 转换失败')
+    }
+  }
+  
+  // 5. 本地文件路径（处理isLocalFile的情况）
+  if (workflowData?.content?.isLocalFile && workflowData.content.path) {
+    console.log('[DEBUG] ⚠️ 本地文件路径格式')
+    return workflowData.content
   }
   
   console.error('[DEBUG] ❌ 无法识别的音频数据格式')
-  console.error('[DEBUG] 数据详情:', data)
+  console.error('[DEBUG] workflowData详情:', workflowData)
   return null
+}
+
+/**
+ * 🚀 调用ASR API
+ */
+async function callASRAPI(audioFile, language, format, apiEndpoint) {
+  console.log('[DEBUG] 调用ASR API:', {
+    endpoint: apiEndpoint,
+    language,
+    format,
+    fileName: audioFile.name
+  })
+  
+  try {
+    // 构建FormData
+    const formData = new FormData()
+    formData.append('file', audioFile)
+    
+    // 构建URL参数
+    const url = new URL(apiEndpoint)
+    url.searchParams.set('language', language)
+    url.searchParams.set('format', format)
+    
+    console.log('[DEBUG] 发送请求到:', url.toString())
+    
+    // 发送请求
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      body: formData,
+      // 不设置Content-Type，让浏览器自动设置multipart/form-data
+    })
+    
+    if (!response.ok) {
+      let errorMessage = `ASR API请求失败: ${response.status} ${response.statusText}`
+      
+      try {
+        const errorData = await response.text()
+        if (errorData) {
+          errorMessage += ` - ${errorData}`
+        }
+      } catch (e) {
+        // 忽略错误解析失败
+      }
+      
+      throw new Error(errorMessage)
+    }
+    
+    // 解析响应
+    const result = format === 'json' ? await response.json() : await response.text()
+    
+    console.log('[DEBUG] API响应成功:', {
+      format,
+      resultType: typeof result,
+      resultLength: typeof result === 'string' ? result.length : 'N/A'
+    })
+    
+    return result
+    
+  } catch (error) {
+    console.error('[DEBUG] API调用失败:', error)
+    throw new Error(`ASR API调用失败: ${error.message}`)
+  }
+}
+
+/**
+ * 🎯 格式化ASR结果
+ */
+function formatASRResult(apiResult, format, metadata) {
+  console.log('[DEBUG] 格式化ASR结果:', { format, resultType: typeof apiResult })
+  
+  if (format === 'json' && typeof apiResult === 'object') {
+    // JSON格式：{text: "识别结果", confidence: 0.95}
+    return {
+      transcription: apiResult.text || apiResult.transcription || String(apiResult),
+      confidence: apiResult.confidence || null,
+      metadata: {
+        ...metadata,
+        apiFormat: 'json',
+        processedAt: new Date().toISOString()
+      }
+    }
+  } else {
+    // 文本格式：直接字符串
+    const text = typeof apiResult === 'string' ? apiResult : String(apiResult)
+    return {
+      transcription: text,
+      confidence: null,
+      metadata: {
+        ...metadata,
+        apiFormat: 'txt',
+        textLength: text.length,
+        processedAt: new Date().toISOString()
+      }
+    }
+  }
+}
+
+// ===== 工具函数 =====
+
+/**
+ * Base64转File对象
+ */
+function base64ToFile(base64String, fileName) {
+  try {
+    const [metadata, base64Data] = base64String.split(',')
+    const mimeType = metadata.match(/:(.*?);/)?.[1] || 'audio/wav'
+    
+    // 将base64转换为Uint8Array
+    const byteCharacters = atob(base64Data)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    
+    // 创建File对象
+    return new File([byteArray], fileName, { type: mimeType })
+  } catch (error) {
+    throw new Error(`Base64转换失败: ${error.message}`)
+  }
 }
