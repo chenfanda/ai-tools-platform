@@ -62,6 +62,17 @@ export class UIWorkflowExecutor {
    * 🔧 修改：执行堆叠式工作流 - 使用新架构
    */
   async executeStackedWorkflow(nodes, addExecutionLog, setNodes) {
+      // 重置所有节点的执行状态
+      setNodes(currentNodes => 
+        currentNodes.map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            result: undefined,      // 清理执行结果
+            isProcessing: false     // 重置处理状态
+          }
+        }))
+      )
     if (!nodes || nodes.length === 0) {
       addExecutionLog('工作流为空，请添加节点', 'error')
       throw new Error('工作流为空，请添加节点')

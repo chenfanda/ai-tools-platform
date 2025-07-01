@@ -118,7 +118,7 @@ const WorkflowEditor = ({ config, onNotification }) => {
       },
       position: {
         x: 400,
-        y: 100 + index * 200 // 增加间距避免重叠
+        y: 100 + index * 250 // 增加间距避免重叠
       }
     }))
   }, [])
@@ -127,7 +127,7 @@ const WorkflowEditor = ({ config, onNotification }) => {
   const calculateNodePosition = useCallback((index) => {
     return {
       x: 400,
-      y: 100 + index * 200 // 固定200px间距
+      y: 100 + index * 250 // 固定200px间距
     }
   }, [])
 

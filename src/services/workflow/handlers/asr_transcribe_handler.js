@@ -64,43 +64,34 @@ export default async function asrTranscribeHandler(input) {
 }
 
 /**
- * 🔑 从多媒体节点输出中提取音频文件（异步版本）
+ * 🔑 从多媒体节点输出中提取音频文件（简化版本）
  */
 async function extractAudioFile(workflowData) {
   console.log('[DEBUG] 提取音频文件，数据结构:', {
     type: typeof workflowData,
+    isFile: workflowData instanceof File,
     hasContent: !!workflowData?.content,
     contentType: typeof workflowData?.content,
-    isFile: workflowData?.content instanceof File,
-    isDirectFile: workflowData instanceof File,
-    workflowDataType: workflowData?.type
+    fileName: workflowData instanceof File ? workflowData.name : 'N/A'
   })
   
-  // 🆕 0. WorkflowData 标准格式：{type: 'audio', content: {audio: {...}}}
-  if (workflowData?.type === 'audio' && workflowData?.content?.audio) {
-    console.log('[DEBUG] ✅ 从 WorkflowData 标准格式提取音频')
-    const audioData = workflowData.content.audio
-    
-    if (audioData.url) {
-      console.log('[DEBUG] 通过 URL 创建 File 对象:', audioData.url)
-      try {
-        const response = await fetch(audioData.url)
-        const blob = await response.blob()
-        const file = new File([blob], audioData.name || 'audio.wav', {
-          type: audioData.type || 'audio/wav'
-        })
-        console.log('[DEBUG] ✅ URL 转换为 File 成功:', file.name)
-        return file
-      } catch (error) {
-        console.error('[DEBUG] URL 转换失败:', error)
-        throw new Error('无法从音频 URL 创建文件对象')
-      }
-    }
+  // 🎯 优先：多媒体节点直接输出的File对象（标准格式）
+  if (workflowData instanceof File) {
+    console.log('[DEBUG] ✅ 直接使用多媒体节点的File对象:', {
+      name: workflowData.name,
+      size: workflowData.size,
+      type: workflowData.type
+    })
+    return workflowData
   }
   
-  // 1. 多媒体节点标准输出：{content: File, metadata: {...}}
+  // 兼容：包装格式 {content: File}
   if (workflowData?.content instanceof File) {
-    console.log('[DEBUG] ✅ 从多媒体节点标准输出提取File对象')
+    console.log('[DEBUG] ✅ 从包装格式提取File对象:', {
+      name: workflowData.content.name,
+      size: workflowData.content.size,
+      type: workflowData.content.type
+    })
     return workflowData.content
   }
   

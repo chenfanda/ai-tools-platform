@@ -724,7 +724,8 @@ validateDynamicConfiguration(nodeConfig, config, validation) {
 canExecuteWithStatus(status) {
   const executableStatuses = [
     NodeStatusCalculator.NODE_STATUS.WAITING,      // ✅ 等待配置
-    NodeStatusCalculator.NODE_STATUS.CONFIGURED    // ✅ 已配置完成
+    NodeStatusCalculator.NODE_STATUS.CONFIGURED,    // ✅ 已配置完成
+    NodeStatusCalculator.NODE_STATUS.SUCCESS 
   ]
   return executableStatuses.includes(status)
 }

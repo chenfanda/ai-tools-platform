@@ -128,7 +128,7 @@ const BaseWorkflowNode = ({
           overflow-hidden ${className}
           ${selected 
             ? `shadow-2xl ${currentTheme.selectedShadow} ring-2 ${currentTheme.ring} ring-opacity-60 scale-105 border-2 ${currentTheme.selectedBorder}` 
-            : `shadow-lg ${currentTheme.shadow} hover:shadow-xl hover:scale-102 border-2 ${currentTheme.border}`
+            : `shadow-md ${currentTheme.shadow} hover:shadow-lg hover:scale-95 scale-90 border-2 ${currentTheme.border}`
           }
         `}
         data-nodetype={nodeType}

@@ -1,10 +1,5 @@
 /**
- * 多媒体输入Handler - 专注音频处理，为ASR节点优化
- * 
- * 核心原则：
- * 1. 默认输出标准File对象，确保ASR节点能直接使用
- * 2. 简化数据结构，避免过度嵌套
- * 3. 确保音频文件格式兼容性
+ * 多媒体输入Handler - 简化版本，标准格式直接返回File对象
  */
 
 export default async function mediaInputHandler(input) {
@@ -56,7 +51,7 @@ export default async function mediaInputHandler(input) {
       fileSize: audioFile.size,
       fileType: audioFile.type,
       outputFormat,
-      resultType: typeof result.content
+      resultType: typeof result
     })
     
     return result
@@ -83,7 +78,7 @@ async function handleFileInput(userConfig) {
   if (userConfig?.mediaFile && typeof userConfig.mediaFile === 'string') {
     console.log('[DEBUG] 尝试处理文件路径:', userConfig.mediaFile)
     
-    // 创建文件引用（实际项目中可能需要通过文件API获取）
+    // 创建文件引用
     const file = new File([''], userConfig.mediaFile, { 
       type: getAudioMimeType(userConfig.mediaFile)
     })
@@ -135,33 +130,16 @@ async function handleUrlInput(userConfig) {
 }
 
 /**
- * 🔑 关键：格式化音频输出 - 确保ASR节点兼容性
+ * 🎯 简化的输出格式化 - 标准格式直接返回File对象
  */
 async function formatAudioOutput(audioFile, outputFormat) {
   console.log(`[formatAudioOutput] 格式化输出: ${outputFormat}`)
   
-  const metadata = {
-    processedAt: new Date().toISOString(),
-    source: 'media-input',
-    outputFormat: outputFormat,
-    fileInfo: {
-      name: audioFile.name,
-      size: audioFile.size,
-      type: audioFile.type,
-      lastModified: audioFile.lastModified,
-      isLocalFile: audioFile.isLocalFile || false,
-      path: audioFile.path || null
-    }
-  }
-  
   switch (outputFormat) {
     case 'standard':
-      // 🎯 标准格式：直接返回File对象 - ASR节点可直接使用
-      console.log('[DEBUG] ✅ 输出标准File对象')
-      return {
-        content: audioFile,  // 直接传递File对象
-        metadata: metadata
-      }
+      // 🎯 标准格式：直接返回File对象，最简单！
+      console.log('[DEBUG] ✅ 直接输出File对象')
+      return audioFile  // 直接返回，不包装
     
     case 'base64':
       // Base64格式 - 用于特殊需求
@@ -169,27 +147,42 @@ async function formatAudioOutput(audioFile, outputFormat) {
       const base64Data = await fileToBase64(audioFile)
       return {
         content: base64Data,
-        metadata: metadata
+        metadata: {
+          processedAt: new Date().toISOString(),
+          source: 'media-input',
+          outputFormat: 'base64',
+          fileInfo: {
+            name: audioFile.name,
+            size: audioFile.size,
+            type: audioFile.type
+          }
+        }
       }
     
     case 'url':
       // Blob URL格式 - 用于预览
       console.log('[DEBUG] 创建Blob URL')
       const blobUrl = URL.createObjectURL(audioFile)
-      metadata.fileInfo.url = blobUrl
-      metadata.fileInfo.isTemporary = true
       return {
         content: blobUrl,
-        metadata: metadata
+        metadata: {
+          processedAt: new Date().toISOString(),
+          source: 'media-input',
+          outputFormat: 'url',
+          fileInfo: {
+            name: audioFile.name,
+            size: audioFile.size,
+            type: audioFile.type,
+            url: blobUrl,
+            isTemporary: true
+          }
+        }
       }
     
     default:
       // 默认使用标准格式
       console.log('[DEBUG] 使用默认标准格式')
-      return {
-        content: audioFile,
-        metadata: metadata
-      }
+      return audioFile  // 直接返回File对象
   }
 }
 
