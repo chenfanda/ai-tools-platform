@@ -1,6 +1,7 @@
 // ===== src/components/workflow/nodes/dynamic/DynamicNode.jsx - 修复版本 =====
 import React, { useState, memo, useEffect, useMemo, useRef } from 'react'
 import BaseWorkflowNode from '../BaseWorkflowNode'
+import nodeStatusCalculator from '../../../../services/workflow/NodeStatusCalculator'
 
 // 🔧 修复：移除有问题的 ModuleAdapter 导入，使用简化版本
 
@@ -205,30 +206,29 @@ const DynamicNode = ({
   const getNodeIndex = () => data.nodeIndex !== undefined ? data.nodeIndex : 0
   const getTotalNodes = () => data.totalNodes || 1
 
-  // ===== 状态计算 =====
-  const getConfigStatus = useMemo(() => {
-    if (renderError) return 'error'
-    if (Object.keys(validationErrors).length > 0) return 'waiting'
-    
-    const hasRequiredFields = safeConfig.validation.required?.length > 0
-    if (hasRequiredFields) {
-      const allRequiredFilled = safeConfig.validation.required.every(field => {
-        const value = fieldValues[field]
-        return value && (typeof value !== 'string' || value.trim())
-      })
-      return allRequiredFilled ? 'configured' : 'waiting'
+// ✅ 修复：改为使用已保存的节点数据
+const getConfigStatus = useMemo(() => {
+  if (renderError) return 'error'
+  
+  try {
+    // 🔧 关键修改：使用统一状态计算器，基于已保存的数据
+    const nodeData = {
+      id,
+      type: safeConfig.type,
+      data: {
+        ...data,
+        nodeConfig: safeConfig
+      }
     }
     
-    return 'configured'
-  }, [fieldValues, validationErrors, safeConfig, renderError])
-
-  const getNodeStatus = useMemo(() => {
-    if (renderError) return 'error'
-    if (isProcessing) return 'processing'
-    if (result?.success) return 'success'
-    if (result?.error) return 'error'
-    return getConfigStatus
-  }, [isProcessing, result, getConfigStatus, renderError])
+    const statusResult = nodeStatusCalculator.calculateNodeStatus(nodeData)
+    return statusResult.status
+    
+  } catch (error) {
+    console.error('[DynamicNode] 状态计算失败:', error)
+    return 'error'
+  }
+}, [id, safeConfig.type, data, renderError])  // 🔧 依赖已保存的数据，不依赖fieldValues
 
   // ===== 简化的数据标准化方法 =====
   const normalizeNodeOutput = (nodeType, outputData, nodeId) => {
@@ -514,7 +514,7 @@ const DynamicNode = ({
       title={safeConfig.label}
       icon={safeConfig.icon}
       nodeIndex={getNodeIndex()}
-      status={getNodeStatus}
+      status={getConfigStatus}
       selected={selected}
       showAddButton={showAddButton}
       onAddNode={data.onAddNode}

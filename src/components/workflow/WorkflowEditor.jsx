@@ -160,7 +160,7 @@ const WorkflowEditor = ({ config, onNotification }) => {
     setNodes(currentNodes => {
       const updatedNodes = currentNodes.map(node => 
         node.id === nodeId 
-          ? { ...node, data: { ...node.data, ...newData } }
+          ? { ...node, data: { ...node.data.config, ...newData } }
           : node
       )
       // 重新计算所有节点数据

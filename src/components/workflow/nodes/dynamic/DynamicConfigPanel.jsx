@@ -318,38 +318,51 @@ const DynamicConfigPanel = ({
   }, [fieldValues, validateAllFields, isInitialized])
 
   // ===== 保存配置 =====
-  const handleSave = useCallback(async () => {
-    setIsLoading(true)
+const handleSave = useCallback(async () => {
+  setIsLoading(true)
+  
+  try {
+    // 验证所有字段
+    const isValid = validateAllFields()
     
-    try {
-      // 验证所有字段
-      const isValid = validateAllFields()
-      
-      if (!isValid) {
-        console.warn('[DynamicConfigPanel] 验证失败，无法保存')
-        return
-      }
-
-      // 准备保存数据
-      const configData = { ...fieldValues }
-      
-      // 🔧 关键修复：确保 onConfigSave 稳定调用
-      if (onConfigSave && node?.id) {
-        console.log('[DynamicConfigPanel] 保存配置:', configData)
-        await onConfigSave(node.id, configData)
-        setHasChanges(false)
-        setLastSaved(new Date().toLocaleTimeString())
-        console.log(`[DynamicConfigPanel] 配置已保存:`, configData)
-      }
-    } catch (error) {
-      console.error('[DynamicConfigPanel] 保存失败:', error)
-      if (onError) {
-        onError(error)
-      }
-    } finally {
-      setIsLoading(false)
+    if (!isValid) {
+      console.warn('[DynamicConfigPanel] 验证失败，无法保存')
+      return
     }
-  }, [fieldValues, validateAllFields, onConfigSave, node?.id, onError])
+
+    // 🔧 关键修改：准备保存数据并添加保存标记
+    const configData = { 
+      ...fieldValues,
+      _userSaved: true,
+      _savedAt: new Date().toISOString()
+    }
+    
+    if (onConfigSave && node?.id) {
+      console.log('[DynamicConfigPanel] 保存配置:', configData)
+      await onConfigSave(node.id, configData)
+      
+      // 🔧 新增：清除状态缓存，强制重新计算
+      try {
+        const { default: nodeStatusCalculator } = await import('../../../../services/workflow/NodeStatusCalculator')
+        nodeStatusCalculator.clearCache()
+        console.log('[DynamicConfigPanel] 状态缓存已清除')
+      } catch (error) {
+        console.warn('[DynamicConfigPanel] 清除缓存失败:', error)
+      }
+      
+      setHasChanges(false)
+      setLastSaved(new Date().toLocaleTimeString())
+      console.log(`[DynamicConfigPanel] 配置已保存:`, configData)
+    }
+  } catch (error) {
+    console.error('[DynamicConfigPanel] 保存失败:', error)
+    if (onError) {
+      onError(error)
+    }
+  } finally {
+    setIsLoading(false)
+  }
+}, [fieldValues, validateAllFields, onConfigSave, node?.id, onError])
 
   // ===== 取消更改 =====
   const handleCancel = useCallback(() => {

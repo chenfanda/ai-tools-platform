@@ -474,18 +474,29 @@ class ConfigurationResolver {
   /**
    * 提取动态节点的配置值
    */
-  extractDynamicConfigValues(data, fields) {
-    const configValues = {}
-    
-    // 从字段定义中提取值
-    fields.forEach(field => {
-      if (data[field.name] !== undefined) {
-        configValues[field.name] = data[field.name]
-      }
-    })
+extractDynamicConfigValues(data, fields) {
+  const configValues = {}
+  
+  // 从字段定义中提取值
+  fields.forEach(field => {
+    if (data[field.name] !== undefined) {
+      configValues[field.name] = data[field.name]
+    }
+  })
 
-    return configValues
+  // 🔧 关键修复：保留系统标记
+  if (data._userSaved !== undefined) {
+    configValues._userSaved = data._userSaved
   }
+  if (data._configSaved !== undefined) {
+    configValues._configSaved = data._configSaved
+  }
+  if (data._savedAt !== undefined) {
+    configValues._savedAt = data._savedAt
+  }
+
+  return configValues
+}
 
   /**
    * 处理动态字段值（类型转换、验证等）

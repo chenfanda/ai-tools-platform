@@ -220,7 +220,10 @@ const UnifiedConfigPanel = ({ node, onConfigSave }) => {
     
     try {
       // 🔧 现在才从 ref 中获取最新值
-      const finalConfigData = { ...inputValuesRef.current }
+      const finalConfigData = { ...inputValuesRef.current,
+            _userSaved: true,
+            _savedAt: new Date().toISOString()
+       }
       
       console.log(`[UnifiedConfigPanel] 保存配置: ${node.id}`, finalConfigData)
 

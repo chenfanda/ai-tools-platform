@@ -544,10 +544,6 @@ class NodeStatusCalculator {
       format: config.downloadFormat || 'auto'
     })
   }
-
-  /**
-   * 验证动态节点配置
-   */
 validateDynamicConfiguration(nodeConfig, config, validation) {
   try {
     if (!nodeConfig || !nodeConfig.fields) {
@@ -556,18 +552,33 @@ validateDynamicConfiguration(nodeConfig, config, validation) {
       })
     }
 
+    // 检查是否有可配置字段
+    const hasFields = nodeConfig.fields && nodeConfig.fields.length > 0
+    
+    if (!hasFields) {
+      // 无参数节点 → 已配置
+      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.CONFIGURED, {
+        reason: 'No parameters required'
+      })
+    }
+
+    // 有参数节点：检查是否已保存
+    const hasSavedConfig = config._userSaved === true || config._configSaved === true
+    
+    if (!hasSavedConfig) {
+      // 有参数但未保存 → 等待
+      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.WAITING, {
+        reason: 'Parameters require user save action'
+      })
+    }
+
+    // 已保存：验证必需字段
     const missingRequired = []
     
-    // 🔧 修复：只检查必需字段，而不是所有字段
     if (validation.required) {
       validation.required.forEach(fieldName => {
         const value = config[fieldName]
-        // 🔧 修复：检查是否有默认值
-        const field = nodeConfig.fields.find(f => f.name === fieldName)
-        const hasDefaultValue = field?.defaultValue !== undefined
-        
-        // 只有在没有值且没有默认值时才报错
-        if (!value && !hasDefaultValue && value !== 0 && value !== false) {
+        if (!value && value !== 0 && value !== false) {
           missingRequired.push(fieldName)
         }
       })
@@ -581,8 +592,7 @@ validateDynamicConfiguration(nodeConfig, config, validation) {
     }
 
     return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.CONFIGURED, {
-      reason: 'Dynamic node properly configured',
-      validatedFields: nodeConfig.fields.length
+      reason: 'Dynamic node properly configured'
     })
 
   } catch (error) {

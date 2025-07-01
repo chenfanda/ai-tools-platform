@@ -649,7 +649,8 @@ class UnifiedNodeManager {
           totalNodes: options.totalNodes || 1,
           nodeConfig: nodeConfig,
           config: {
-            ...nodeConfig.defaultData,
+            _userSaved: false,  
+            // ...nodeConfig.defaultData,
             ...options.config
           },
           result: null,
