@@ -711,12 +711,13 @@ validateDynamicConfiguration(nodeConfig, config, validation) {
   /**
    * 检查状态是否可执行
    */
-  canExecuteWithStatus(status) {
-    const executableStatuses = [
-      NodeStatusCalculator.NODE_STATUS.CONFIGURED
-    ]
-    return executableStatuses.includes(status)
-  }
+canExecuteWithStatus(status) {
+  const executableStatuses = [
+    NodeStatusCalculator.NODE_STATUS.WAITING,      // ✅ 等待配置
+    NodeStatusCalculator.NODE_STATUS.CONFIGURED    // ✅ 已配置完成
+  ]
+  return executableStatuses.includes(status)
+}
 
   /**
    * 生成状态缓存键

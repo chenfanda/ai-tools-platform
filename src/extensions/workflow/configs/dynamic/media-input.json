@@ -73,10 +73,7 @@
       "label": "媒体链接",
       "required": false,
       "placeholder": "https://example.com/media.jpg",
-      "description": "输入媒体文件的URL地址",
-      "validation": {
-        "pattern": "^https?://.+"
-      }
+      "description": "输入媒体文件的URL地址"
     },
     {
       "name": "mediaType",

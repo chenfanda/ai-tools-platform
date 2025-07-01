@@ -748,7 +748,7 @@ validateConfiguration(resolvedConfig, nodeData) {
       Object.entries(validation.rules).forEach(([field, rule]) => {
         const value = config[field]
         
-        if (value !== undefined && value !== null) {
+        if (value && typeof value === 'string' && value.trim().length > 0) {
           if (rule.type === 'string' && typeof value !== 'string') {
             errors.push(`字段 "${field}" 必须是字符串类型`)
           } else if (rule.type === 'number' && typeof value !== 'number') {

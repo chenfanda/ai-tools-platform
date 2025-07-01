@@ -6,7 +6,7 @@
     "description": "支持多语言的语音转文字识别",
     "author": "workflow-system",
     "version": "1.0.0",
-    "tags": ["asr", "speech", "transcribe"]
+    "tags": ["asr", "speech", "transcribe", "whisper"]
   },
   "node": {
     "type": "asr-node", 
@@ -17,10 +17,10 @@
     "theme": "green"
   },
   "inputSchema": {
-    "audioInput": {
-      "type": "audio",
+    "audioData": {
+      "type": "any",
       "required": true,
-      "description": "需要识别的音频文件"
+      "description": "来自多媒体节点的音频数据"
     }
   },
   "outputSchema": {
@@ -63,12 +63,9 @@
     }
   ],
   "execution": {
-    "type": "api",
+    "type": "local",
     "handler": "asr_transcribe_handler",
-    "endpoint": "http://localhost:8002/transcribe",
-    "method": "POST",
-    "contentType": "multipart/form-data",
-    "timeout": 30,
+    "timeout": 60,
     "retry": 1
   },
   "nodeUI": {
@@ -77,10 +74,17 @@
     "actions": [
       {
         "id": "transcribe",
-        "label": "开始识别",
+        "label": "开始识别", 
         "icon": "🎙️",
         "action": "execute",
         "condition": "hasAudioInput"
+      },
+      {
+        "id": "test-connection",
+        "label": "测试连接",
+        "icon": "🔗",
+        "action": "test",
+        "condition": "hasApiEndpoint"
       }
     ]
   },
@@ -107,7 +111,7 @@
           "enum": ["zh", "en", "ja", "ko"]
         },
         "format": {
-          "type": "string",
+          "type": "string", 
           "enum": ["txt", "json"]
         }
       }
