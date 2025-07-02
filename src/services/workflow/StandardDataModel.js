@@ -895,7 +895,7 @@ class StandardDataModel {
            (data?.type === 'audio')
   }
 
-  /**
+  /**const legacyTypes = ['text-input', 'tts', 'output', 'download']
    * 提取音频信息
    */
   static extractAudioInfo(data) {

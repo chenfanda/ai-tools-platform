@@ -1,18 +1,15 @@
-// ===== src/components/workflow/nodes/dynamic/DynamicNode.jsx - 修复版本 =====
+// ===== src/components/workflow/nodes/dynamic/DynamicNode.jsx - 状态表情显示版本 =====
 import React, { useState, memo, useEffect, useMemo, useRef } from 'react'
 import BaseWorkflowNode from '../BaseWorkflowNode'
 import nodeStatusCalculator from '../../../../services/workflow/NodeStatusCalculator'
 
-// 🔧 修复：移除有问题的 ModuleAdapter 导入，使用简化版本
-
 /**
  * 通用动态节点组件 - 配置驱动的节点生成器
  * 
- * 核心功能：
- * 1. 基于配置动态生成节点UI和逻辑
- * 2. 完全复用 BaseWorkflowNode 的样式框架
- * 3. 智能降级保护，确保系统稳定性
- * 4. 支持多种字段类型和验证规则
+ * 🔧 修改：字段预览改为状态表情显示
+ * - 保持配置状态和执行状态显示不变
+ * - 将字段预览区域改为根据状态显示对应表情
+ * - 最小改动，更直观易懂
  */
 const DynamicNode = ({ 
   nodeConfig, 
@@ -402,101 +399,94 @@ const getConfigStatus = useMemo(() => {
     })
   }
 
-  // ===== 字段渲染函数 =====
-  const renderFieldPreview = (field) => {
+  // ===== 🎯 新增：状态表情渲染函数 =====
+  const renderStatusEmoji = () => {
     try {
-      const value = fieldValues[field.name]
-      const hasError = validationErrors[field.name]
+      const currentStatus = getConfigStatus
+      const currentProcessing = isProcessing || data.isProcessing
+      const currentResult = result || data.result
 
-      switch (field.type) {
-        case 'text':
-        case 'textarea':
+      // 🔧 优先级：执行状态 > 配置状态
+      if (currentProcessing) {
+        return (
+          <div className="flex flex-col items-center justify-center py-4 space-y-2">
+            <div className="text-3xl animate-spin">⚙️</div>
+            <div className="text-sm font-medium text-blue-700">正在执行...</div>
+            <div className="text-xs text-blue-600">请稍候</div>
+          </div>
+        )
+      }
+
+      if (currentResult?.success) {
+        return (
+          <div className="flex flex-col items-center justify-center py-4 space-y-2">
+            <div className="text-3xl">🎉</div>
+            <div className="text-sm font-medium text-green-700">执行成功</div>
+            <div className="text-xs text-green-600">任务完成</div>
+          </div>
+        )
+      }
+
+      if (currentResult?.error) {
+        return (
+          <div className="flex flex-col items-center justify-center py-4 space-y-2">
+            <div className="text-3xl">❌</div>
+            <div className="text-sm font-medium text-red-700">执行失败</div>
+            <div className="text-xs text-red-600">请检查配置</div>
+          </div>
+        )
+      }
+
+      // 根据配置状态显示
+      switch (currentStatus) {
+        case 'configured':
           return (
-            <div key={field.name} className="mb-2">
-              <div className="text-xs font-medium text-gray-700 mb-1">
-                {field.label}
-                {field.required && <span className="text-red-500 ml-1">*</span>}
-              </div>
-              <div className={`p-2 rounded border text-xs ${
-                hasError 
-                  ? 'bg-red-50 border-red-200 text-red-700' 
-                  : value 
-                    ? 'bg-gray-50 border-gray-200 text-gray-800' 
-                    : 'bg-gray-50 border-gray-200 text-gray-400'
-              }`}>
-                {hasError ? (
-                  `❌ ${hasError}`
-                ) : value ? (
-                  field.type === 'textarea' && value.length > 50 
-                    ? `${value.substring(0, 50)}...` 
-                    : value
-                ) : (
-                  field.placeholder || `请配置${field.label}`
-                )}
+            <div className="flex flex-col items-center justify-center py-4 space-y-2">
+              <div className="text-3xl">✅</div>
+              <div className="text-sm font-medium text-green-700">配置完成</div>
+              <div className="text-xs text-green-600">
+                {safeConfig.fields.length > 0 ? `${safeConfig.fields.length} 个字段已配置` : '准备就绪'}
               </div>
             </div>
           )
 
-        case 'select':
-          const selectedOption = field.options?.find(opt => 
-            typeof opt === 'string' ? opt === value : opt.value === value
-          )
-          
+        case 'waiting':
           return (
-            <div key={field.name} className="mb-2">
-              <div className="text-xs font-medium text-gray-700 mb-1">
-                {field.label}
-                {field.required && <span className="text-red-500 ml-1">*</span>}
-              </div>
-              <div className={`p-2 rounded border text-xs ${
-                hasError 
-                  ? 'bg-red-50 border-red-200 text-red-700' 
-                  : selectedOption 
-                    ? 'bg-gray-50 border-gray-200 text-gray-800' 
-                    : 'bg-gray-50 border-gray-200 text-gray-400'
-              }`}>
-                {hasError ? (
-                  `❌ ${hasError}`
-                ) : selectedOption ? (
-                  typeof selectedOption === 'string' ? selectedOption : selectedOption.label
-                ) : (
-                  `请选择${field.label}`
-                )}
+            <div className="flex flex-col items-center justify-center py-4 space-y-2">
+              <div className="text-3xl">⏳</div>
+              <div className="text-sm font-medium text-yellow-700">等待配置</div>
+              <div className="text-xs text-yellow-600">
+                {safeConfig.fields.length > 0 ? `需要配置 ${safeConfig.fields.length} 个字段` : '点击右侧配置'}
               </div>
             </div>
           )
 
-        case 'checkbox':
+        case 'error':
+        case 'invalid':
           return (
-            <div key={field.name} className="mb-2">
-              <div className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
-                <div className={`w-3 h-3 rounded border ${
-                  value ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
-                }`}>
-                  {value && <div className="text-white text-xs">✓</div>}
-                </div>
-                <span className="text-xs text-gray-700">{field.label}</span>
-              </div>
+            <div className="flex flex-col items-center justify-center py-4 space-y-2">
+              <div className="text-3xl">❌</div>
+              <div className="text-sm font-medium text-red-700">配置错误</div>
+              <div className="text-xs text-red-600">请检查节点配置</div>
             </div>
           )
 
         default:
           return (
-            <div key={field.name} className="mb-2">
-              <div className="text-xs font-medium text-gray-700 mb-1">{field.label}</div>
-              <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
-                不支持的字段类型: {field.type}
-              </div>
+            <div className="flex flex-col items-center justify-center py-4 space-y-2">
+              <div className="text-3xl">💭</div>
+              <div className="text-sm font-medium text-gray-700">状态未知</div>
+              <div className="text-xs text-gray-600">请刷新或重新配置</div>
             </div>
           )
       }
     } catch (error) {
-      console.error(`[DynamicNode] 字段渲染失败 ${field.name}:`, error)
+      console.error('[DynamicNode] 状态表情渲染失败:', error)
       return (
-        <div key={field.name} className="mb-2">
-          <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
-            字段渲染错误: {field.name}
-          </div>
+        <div className="flex flex-col items-center justify-center py-4 space-y-2">
+          <div className="text-3xl">🤔</div>
+          <div className="text-sm font-medium text-gray-700">渲染异常</div>
+          <div className="text-xs text-gray-600">请联系开发人员</div>
         </div>
       )
     }
@@ -532,7 +522,7 @@ const getConfigStatus = useMemo(() => {
         {!renderError && (
           <div className="flex items-center justify-between mb-2">
             <label className="text-xs font-medium text-gray-700">
-              节点配置
+              节点状态
             </label>
             {selected && (
               <div className={`text-xs px-2 py-0.5 rounded-full ${
@@ -548,40 +538,10 @@ const getConfigStatus = useMemo(() => {
           </div>
         )}
 
-        {/* 字段预览 */}
-        {!renderError && safeConfig.fields.length > 0 && (
-          <div className="space-y-1 max-h-20 overflow-y-auto">
-            {safeConfig.fields.slice(0, 3).map(renderFieldPreview)}
-            {safeConfig.fields.length > 3 && (
-              <div className="text-xs text-gray-500 text-center py-1">
-                还有 {safeConfig.fields.length - 3} 个字段...
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 执行状态 */}
+        {/* 🎯 修改：状态表情显示（替代字段预览） */}
         {!renderError && (
-          <div>
-            {isProcessing && (
-              <div className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-200">
-                <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-xs text-blue-700">正在处理...</span>
-              </div>
-            )}
-            
-            {result?.success && (
-              <div className="p-2 bg-green-50 rounded border border-green-200">
-                <div className="text-xs font-medium text-green-800">✅ 处理成功</div>
-              </div>
-            )}
-            
-            {result?.error && (
-              <div className="p-2 bg-red-50 rounded border border-red-200">
-                <div className="text-xs font-medium text-red-800">❌ 处理失败</div>
-                <div className="text-xs text-red-600 mt-1">{result.error}</div>
-              </div>
-            )}
+          <div className="border border-gray-200 rounded-lg bg-gray-50/50">
+            {renderStatusEmoji()}
           </div>
         )}
 

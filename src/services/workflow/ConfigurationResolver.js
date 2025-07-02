@@ -398,12 +398,18 @@ class ConfigurationResolver {
     // 保留系统标记
     if (data._userSaved !== undefined) {
       configValues._userSaved = data._userSaved
+    }else if (data.config?._userSaved !== undefined) {
+      configValues._userSaved = data.config._userSaved  // 🔧 新增这行
     }
-    if (data._configSaved !== undefined) {
-      configValues._configSaved = data._configSaved
+        if (data._configSaved !== undefined) {
+          configValues._configSaved = data._configSaved
+        } else if (data.config?._configSaved !== undefined) {
+      configValues._configSaved = data.config._configSaved  // 🔧 新增这行
     }
-    if (data._savedAt !== undefined) {
-      configValues._savedAt = data._savedAt
+        if (data._savedAt !== undefined) {
+          configValues._savedAt = data._savedAt
+        }else if (data.config?._savedAt !== undefined) {
+      configValues._savedAt = data.config._savedAt  // 🔧 新增这行
     }
 
     return configValues
