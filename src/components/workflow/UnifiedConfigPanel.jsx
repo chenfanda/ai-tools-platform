@@ -796,10 +796,8 @@ function renderField(field, value, error, onChange, onBlur, onFocus) {
             onChange={(e) => {
               const file = e.target.files[0]
               if (file) {
-                // 可以选择存储文件名或创建 URL
-                onChange(field.name, file.name)
-                // 或者存储文件对象（如果需要）
-                // onChange(field.name, file)
+                // 🔧 修复：传递 File 对象而不是文件名
+                onChange(field.name, file)
               }
             }}
             onBlur={onBlur}
@@ -811,7 +809,9 @@ function renderField(field, value, error, onChange, onBlur, onFocus) {
             <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
               <div className="flex items-center gap-2">
                 <span className="text-gray-600">📎</span>
-                <span className="text-sm text-gray-800 truncate">{value}</span>
+                <span className="text-sm text-gray-800 truncate">
+                  {value instanceof File ? value.name : value}
+                </span>
               </div>
             </div>
           )}
@@ -847,8 +847,8 @@ function renderField(field, value, error, onChange, onBlur, onFocus) {
             onChange={(e) => {
               const file = e.target.files[0]
               if (file) {
-                const imageUrl = URL.createObjectURL(file)
-                onChange(field.name, imageUrl)
+                // 🔧 修复：传递 File 对象而不是 URL
+                onChange(field.name, file)
               }
             }}
             onBlur={onBlur}
@@ -858,7 +858,7 @@ function renderField(field, value, error, onChange, onBlur, onFocus) {
           {value && (
             <div className="mt-2">
               <img 
-                src={value} 
+                src={value instanceof File ? URL.createObjectURL(value) : value}
                 alt="预览" 
                 className="max-w-32 max-h-32 object-cover rounded border border-gray-200 shadow-sm" 
               />
@@ -880,8 +880,8 @@ function renderField(field, value, error, onChange, onBlur, onFocus) {
             onChange={(e) => {
               const file = e.target.files[0]
               if (file) {
-                const audioUrl = URL.createObjectURL(file)
-                onChange(field.name, audioUrl)
+                // 🔧 修复：传递 File 对象而不是 URL
+                onChange(field.name, file)
               }
             }}
             onBlur={onBlur}
@@ -891,7 +891,7 @@ function renderField(field, value, error, onChange, onBlur, onFocus) {
           {value && (
             <div className="mt-2">
               <audio controls className="w-full">
-                <source src={value} />
+                <source src={value instanceof File ? URL.createObjectURL(value) : value} />
                 您的浏览器不支持音频播放
               </audio>
             </div>
@@ -912,8 +912,8 @@ function renderField(field, value, error, onChange, onBlur, onFocus) {
             onChange={(e) => {
               const file = e.target.files[0]
               if (file) {
-                const videoUrl = URL.createObjectURL(file)
-                onChange(field.name, videoUrl)
+                // 🔧 修复：传递 File 对象而不是 URL
+                onChange(field.name, file)
               }
             }}
             onBlur={onBlur}
@@ -923,7 +923,7 @@ function renderField(field, value, error, onChange, onBlur, onFocus) {
           {value && (
             <div className="mt-2">
               <video controls className="max-w-64 max-h-32 rounded border border-gray-200">
-                <source src={value} />
+                <source src={value instanceof File ? URL.createObjectURL(value) : value} />
                 您的浏览器不支持视频播放
               </video>
             </div>

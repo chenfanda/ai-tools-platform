@@ -143,8 +143,18 @@ class StandardDataModel {
       return 'standard'
     }
 
-    // 检查是否为动态节点格式
-    if (nodeData.data && (nodeData.data.nodeConfig || nodeData.nodeConfig)) {
+    // 🔧 修复：检查是否为动态节点格式
+    if (nodeData.data && nodeData.data.nodeConfig) {
+      return 'dynamic'
+    }
+    
+    // 🔧 新增：检查是否通过外部传递了 nodeConfig（DynamicExecutor的情况）
+    if (nodeData.nodeConfig) {
+      return 'dynamic'
+    }
+    
+    // 🔧 新增：根据节点类型判断是否为动态节点
+    if (nodeData.type && this.isDynamicNodeType(nodeData.type)) {
       return 'dynamic'
     }
 
@@ -152,8 +162,42 @@ class StandardDataModel {
     if (nodeData.data && nodeData.type && nodeData.data.nodeType) {
       return 'legacy'
     }
+    
+    // 🔧 新增：根据节点类型判断是否为传统节点
+    if (nodeData.type && this.isLegacyNodeType(nodeData.type)) {
+      return 'legacy'
+    }
 
     return 'unknown'
+  }
+
+  /**
+   * 🔧 新增：判断是否为动态节点类型
+   */
+  static isDynamicNodeType(nodeType) {
+    const dynamicNodeTypes = [
+      'asr-node',
+      'media-input', 
+      'simple-test'
+      // 可以扩展更多动态节点类型
+    ]
+    
+    // 包含连字符的通常是动态节点
+    return dynamicNodeTypes.includes(nodeType) || nodeType.includes('-')
+  }
+
+  /**
+   * 🔧 新增：判断是否为传统节点类型
+   */
+  static isLegacyNodeType(nodeType) {
+    const legacyNodeTypes = [
+      'text-input',
+      'tts', 
+      'output',
+      'download'
+    ]
+    
+    return legacyNodeTypes.includes(nodeType)
   }
 
   /**
@@ -500,30 +544,36 @@ class StandardDataModel {
   // ===== 数据流处理方法 =====
 
   /**
-   * 标准化节点输出数据
+   * 标准化节点输出数据 - 配置驱动版本
    * 
    * 在节点执行完成后，将输出数据转换为统一的 WorkflowData 格式
    * 
    * @param {string} nodeType - 节点类型
    * @param {*} nodeOutput - 节点原始输出数据
    * @param {string} nodeId - 节点ID
+   * @param {object} nodeConfig - 节点JSON配置
    * @returns {object} 标准化的 WorkflowData 格式数据
    */
-  static normalizeNodeOutput(nodeType, nodeOutput, nodeId) {
+  static normalizeNodeOutput(nodeType, nodeOutput, nodeId, nodeConfig = null) {
     try {
       console.log(`[StandardDataModel] 标准化 ${nodeType} 节点输出:`, nodeOutput)
       
-      // 如果已经是标准 WorkflowData 格式，直接返回
-      if (this.isWorkflowData(nodeOutput)) {
-        console.log(`[StandardDataModel] 数据已是 WorkflowData 格式`)
-        return nodeOutput
+      // 🔧 核心修复：区分传统节点和动态节点的处理方式
+      if (this.isLegacyNodeType(nodeType)) {
+        // 传统节点：使用原有逻辑，确保兼容性
+        console.log(`[StandardDataModel] 传统节点使用原有标准化逻辑`)
+        return this.normalizeLegacyNodeOutput(nodeType, nodeOutput, nodeId)
       }
-
-      // 根据节点类型和数据特征进行标准化
-      const workflowData = this.createWorkflowDataFromOutput(nodeType, nodeOutput, nodeId)
       
-      console.log(`[StandardDataModel] ${nodeType} 标准化完成:`, workflowData.getPreview())
-      return workflowData
+      if (this.isDynamicNodeType(nodeType)) {
+        // 动态节点：根据JSON配置处理
+        console.log(`[StandardDataModel] 动态节点使用配置驱动标准化`)
+        return this.normalizeDynamicNodeOutput(nodeType, nodeOutput, nodeId, nodeConfig)
+      }
+      
+      // 未知节点类型：使用原有逻辑作为降级
+      console.log(`[StandardDataModel] 未知节点类型，使用降级逻辑`)
+      return this.normalizeLegacyNodeOutput(nodeType, nodeOutput, nodeId)
 
     } catch (error) {
       console.error(`[StandardDataModel] 标准化失败: ${error.message}`)
@@ -532,6 +582,122 @@ class StandardDataModel {
         source: nodeType,
         errorType: 'normalization_failed'
       })
+    }
+  }
+
+  /**
+   * 🔧 新增：传统节点输出标准化（保持原有逻辑）
+   */
+  static normalizeLegacyNodeOutput(nodeType, nodeOutput, nodeId) {
+    // 如果已经是标准 WorkflowData 格式，直接返回
+    if (this.isWorkflowData(nodeOutput)) {
+      console.log(`[StandardDataModel] 传统节点数据已是 WorkflowData 格式`)
+      return nodeOutput
+    }
+
+    // 根据节点类型和数据特征进行标准化
+    const workflowData = this.createWorkflowDataFromOutput(nodeType, nodeOutput, nodeId)
+    
+    console.log(`[StandardDataModel] ${nodeType} 传统节点标准化完成:`, workflowData.getPreview())
+    return workflowData
+  }
+
+  /**
+   * 🔧 新增：动态节点输出标准化（配置驱动）
+   */
+  static normalizeDynamicNodeOutput(nodeType, nodeOutput, nodeId, nodeConfig) {
+    try {
+      // 🔧 关键原则：如果已经是 WorkflowData，尊重节点的输出意图
+      if (this.isWorkflowData(nodeOutput)) {
+        console.log(`[StandardDataModel] 动态节点已输出 WorkflowData，保持原格式`)
+        return nodeOutput
+      }
+
+      // 🔧 关键原则：如果有 outputSchema，严格按照配置处理
+      if (nodeConfig && nodeConfig.outputSchema) {
+        return this.standardizeByOutputSchema(nodeType, nodeOutput, nodeId, nodeConfig.outputSchema)
+      }
+
+      // 🔧 降级：没有配置时的最小处理
+      console.log(`[StandardDataModel] 动态节点无 outputSchema，最小化处理`)
+      
+      // 直接返回原数据，不强制转换
+      if (nodeOutput instanceof File) {
+        console.log(`[StandardDataModel] 保持 File 对象格式`)
+        return nodeOutput
+      }
+      
+      if (typeof nodeOutput === 'string') {
+        console.log(`[StandardDataModel] 保持字符串格式`)
+        return nodeOutput
+      }
+      
+      // 其他情况，创建通用的 WorkflowData
+      return this.createWorkflowData('data', nodeOutput, {
+        nodeId,
+        source: nodeType,
+        preserveOriginal: true
+      })
+
+    } catch (error) {
+      console.error(`[StandardDataModel] 动态节点标准化失败: ${error.message}`)
+      return nodeOutput // 降级：返回原数据
+    }
+  }
+
+  /**
+   * 🔧 新增：根据 outputSchema 进行标准化
+   */
+  static standardizeByOutputSchema(nodeType, nodeOutput, nodeId, outputSchema) {
+    try {
+      const firstOutputKey = Object.keys(outputSchema)[0]
+      const expectedType = outputSchema[firstOutputKey]?.type
+      
+      console.log(`[StandardDataModel] 按 outputSchema 标准化: ${nodeType} 期望 ${expectedType}`)
+      
+      switch (expectedType) {
+        case 'File':
+          // 期望 File 对象
+          if (nodeOutput instanceof File) {
+            console.log(`[StandardDataModel] File 对象符合期望，直接返回`)
+            return nodeOutput
+          }
+          break
+          
+        case 'string':
+          // 期望字符串
+          if (typeof nodeOutput === 'string') {
+            console.log(`[StandardDataModel] 字符串符合期望，创建文本 WorkflowData`)
+            return this.createWorkflowData('text', { text: nodeOutput }, {
+              nodeId,
+              source: nodeType
+            })
+          }
+          break
+          
+        case 'object':
+          // 期望对象
+          if (typeof nodeOutput === 'object' && nodeOutput !== null) {
+            console.log(`[StandardDataModel] 对象符合期望，创建数据 WorkflowData`)
+            return this.createWorkflowData('data', nodeOutput, {
+              nodeId,
+              source: nodeType
+            })
+          }
+          break
+          
+        default:
+          console.log(`[StandardDataModel] 未知期望类型 ${expectedType}，保持原格式`)
+          return nodeOutput
+      }
+      
+      // 类型不匹配时的处理
+      console.warn(`[StandardDataModel] 输出类型不匹配: 期望 ${expectedType}, 实际 ${typeof nodeOutput}`)
+      return nodeOutput // 保持原格式，不强制转换
+      
+    } catch (error) {
+      console.error(`[StandardDataModel] outputSchema 标准化失败:`, error)
+      return nodeOutput // 降级：返回原数据
     }
   }
 
@@ -553,25 +719,45 @@ class StandardDataModel {
 
       console.log(`[StandardDataModel] 为 ${targetNodeType} 准备输入数据:`, sourceData)
 
-      // 确保数据是 WorkflowData 格式
-      const workflowData = this.isWorkflowData(sourceData) 
-        ? sourceData 
-        : this.normalizeNodeOutput('unknown', sourceData, 'temp')
-
-      // 转换为目标节点期望的格式
-      const compatibleInput = this.convertToTargetFormat(workflowData, targetNodeType)
-
-      console.log(`[StandardDataModel] ${targetNodeType} 输入准备完成:`, {
-        originalType: workflowData.type,
-        compatibleFormat: typeof compatibleInput
-      })
-
-      return compatibleInput
+      // 🔧 修复：区分传统节点和动态节点的输入处理
+      if (this.isLegacyNodeType(targetNodeType)) {
+        // 传统节点：使用原有转换逻辑
+        return this.prepareLegacyNodeInput(sourceData, targetNodeType)
+      }
+      
+      if (this.isDynamicNodeType(targetNodeType)) {
+        // 动态节点：直接传递数据，让 DynamicAdapter 处理
+        console.log(`[StandardDataModel] 动态节点直接传递数据给 DynamicAdapter`)
+        return sourceData
+      }
+      
+      // 未知节点：使用传统逻辑
+      return this.prepareLegacyNodeInput(sourceData, targetNodeType)
 
     } catch (error) {
       console.error(`[StandardDataModel] 输入准备失败: ${error.message}`)
-      return null
+      return sourceData
     }
+  }
+
+  /**
+   * 🔧 新增：为传统节点准备输入（保持原有逻辑）
+   */
+  static prepareLegacyNodeInput(sourceData, targetNodeType) {
+    // 确保数据是标准格式
+    const workflowData = this.isWorkflowData(sourceData) 
+      ? sourceData 
+      : this.normalizeNodeOutput('unknown', sourceData, 'temp')
+
+    // 转换为目标节点期望的格式
+    const compatibleInput = this.convertToTargetFormat(workflowData, targetNodeType)
+
+    console.log(`[StandardDataModel] ${targetNodeType} 传统节点输入准备完成:`, {
+      originalType: workflowData.type,
+      compatibleFormat: typeof compatibleInput
+    })
+
+    return compatibleInput
   }
 
   // ===== 工具方法：WorkflowData 创建和处理 =====
@@ -603,13 +789,13 @@ class StandardDataModel {
       })
     }
 
-    // 2. 音频数据检测 (tts 节点输出)
+// 2. 音频数据检测 (tts 节点输出)
     if (this.isAudioData(nodeOutput)) {
       const audioInfo = this.extractAudioInfo(nodeOutput)
       return this.createWorkflowData('audio', { audio: audioInfo }, {
         nodeId,
         source: nodeType,
-        originalFormat: 'audio',
+        originalFormat: 'legacy_audio',
         originalText: nodeOutput.metadata?.originalText || nodeOutput.originalText
       })
     }
@@ -625,7 +811,7 @@ class StandardDataModel {
       })
     }
 
-    // 4. 对象类型的文本数据
+    // 4. 对象类型的文本数据 (某些节点可能返回 {text: "..."})
     if (nodeOutput?.text || nodeOutput?.content?.text) {
       const text = nodeOutput.text || nodeOutput.content.text
       return this.createWorkflowData('text', { text }, {
@@ -635,21 +821,46 @@ class StandardDataModel {
       })
     }
 
-    // 5. 下载数据检测
-    if (this.isDownloadData(nodeOutput)) {
-      return this.createWorkflowData('download', { download: nodeOutput }, {
-        nodeId,
-        source: nodeType,
-        originalFormat: 'download'
-      })
-    }
-
-    // 6. 默认作为数据对象处理
+    // 5. 默认作为数据对象处理
     return this.createWorkflowData('data', nodeOutput, {
       nodeId,
       source: nodeType,
       originalFormat: 'object'
     })
+  }
+
+  /**
+   * 转换为目标节点格式
+   */
+  static convertToTargetFormat(workflowData, targetNodeType) {
+    switch (targetNodeType) {
+      case 'text-input':
+        // text-input 节点期望接收字符串
+        if (workflowData.type === 'text') {
+          return workflowData.content.text
+        }
+        return String(workflowData.content)
+      
+      case 'tts':
+        // tts 节点可以接收字符串
+        if (workflowData.type === 'text') {
+          return workflowData.content.text
+        }
+        if (workflowData.metadata?.originalText) {
+          return workflowData.metadata.originalText
+        }
+        return String(workflowData.content)
+      
+      case 'download':
+      case 'output':
+        // 这些节点接收完整的 WorkflowData
+        return workflowData
+      
+      default:
+        // 其他节点类型，返回完整的 WorkflowData
+        console.log(`[StandardDataModel] 未知节点类型 ${targetNodeType}，返回完整数据`)
+        return workflowData
+    }
   }
 
   /**
@@ -710,48 +921,6 @@ class StandardDataModel {
            data?.downloadInfo || 
            data?.canDownload ||
            (data?.type === 'download')
-  }
-
-  /**
-   * 转换为目标节点格式
-   */
-  static convertToTargetFormat(workflowData, targetNodeType) {
-    switch (targetNodeType) {
-      case 'text-input':
-        // text-input 节点期望接收字符串
-        if (workflowData.type === 'text') {
-          return workflowData.content.text
-        }
-        return String(workflowData.content)
-      
-      case 'tts':
-        // tts 节点可以接收字符串
-        if (workflowData.type === 'text') {
-          return workflowData.content.text
-        }
-        if (workflowData.metadata?.originalText) {
-          return workflowData.metadata.originalText
-        }
-        return String(workflowData.content)
-      
-      case 'download':
-      case 'output':
-        // 这些节点接收完整的 WorkflowData
-        return workflowData
-      
-      case 'asr-node':
-        // ASR 节点期望音频数据，返回完整 WorkflowData
-        return workflowData
-      
-      case 'media-input':
-        // 媒体输入节点，返回完整 WorkflowData
-        return workflowData
-      
-      default:
-        // 动态节点或未知节点类型，返回完整 WorkflowData
-        console.log(`[StandardDataModel] 未知节点类型 ${targetNodeType}，返回完整数据`)
-        return workflowData
-    }
   }
 
   /**

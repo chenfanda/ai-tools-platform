@@ -1,22 +1,15 @@
-// ===== src/services/workflow/NodeStatusCalculator.js - 统一状态计算器 =====
+// ===== src/services/workflow/NodeStatusCalculator.js - 简化版本 =====
 
-import StandardDataModel from './StandardDataModel'
 import configurationResolver from './ConfigurationResolver'
 
 /**
- * 节点状态计算器 - 统一的节点状态计算逻辑
+ * 节点状态计算器 - 简化版本
  * 
- * 核心职责：
- * 1. 根据节点类型和配置计算统一的状态
- * 2. 提供一致的状态定义和转换规则
- * 3. 支持自定义状态计算逻辑
- * 4. 状态变化的监听和通知机制
- * 
- * 设计原则：
- * - 状态一致性：所有节点类型使用相同的状态体系
- * - 计算准确性：基于配置完整性和业务逻辑精确计算
- * - 扩展灵活性：支持节点特定的状态计算规则
- * - 性能优化：状态计算结果缓存和增量更新
+ * 🔧 简化原则：
+ * 1. 移除冗余的格式检测逻辑 
+ * 2. 执行器直接指定状态计算方式（forceType）
+ * 3. 保持核心状态计算功能不变
+ * 4. 移除过度设计的功能
  */
 class NodeStatusCalculator {
   
@@ -26,9 +19,6 @@ class NodeStatusCalculator {
     
     // 状态变化监听器
     this.statusListeners = new Map()
-    
-    // 自定义状态计算器注册表
-    this.customCalculators = new Map()
     
     // 状态计算统计
     this.stats = {
@@ -40,9 +30,6 @@ class NodeStatusCalculator {
     
     // 调试模式
     this.debugMode = process.env.NODE_ENV === 'development'
-    
-    // 初始化默认状态计算器
-    this.initializeDefaultCalculators()
     
     this.log('[NodeStatusCalculator] 状态计算器已初始化')
   }
@@ -72,9 +59,7 @@ class NodeStatusCalculator {
   }
 
   /**
-   * 统一状态枚举
-   * 
-   * 基于现有代码分析，标准化所有可能的节点状态
+   * 统一状态枚举 - 保持不变
    */
   static get NODE_STATUS() {
     return {
@@ -98,9 +83,7 @@ class NodeStatusCalculator {
   }
 
   /**
-   * 状态优先级定义
-   * 
-   * 当多个状态条件同时满足时，按优先级返回最重要的状态
+   * 状态优先级定义 - 保持不变
    */
   static get STATUS_PRIORITY() {
     return {
@@ -119,10 +102,11 @@ class NodeStatusCalculator {
   }
 
   /**
-   * 主要状态计算入口
+   * 主要状态计算入口 - 简化版本
    * 
    * @param {object} nodeData - 节点数据
    * @param {object} options - 计算选项
+   * @param {string} options.forceType - 强制指定计算类型：'legacy' | 'dynamic'
    * @returns {object} 状态计算结果
    */
   calculateNodeStatus(nodeData, options = {}) {
@@ -166,29 +150,35 @@ class NodeStatusCalculator {
   }
 
   /**
-   * 执行状态计算的核心逻辑
+   * 执行状态计算的核心逻辑 - 简化版本
    */
   performStatusCalculation(nodeData, options = {}) {
     try {
-      // 1. 检测节点数据格式
-      const dataFormat = StandardDataModel.detectDataFormat(nodeData)
-      
-      // 2. 解析节点配置
-      const configResult = configurationResolver.resolveConfiguration(nodeData, {
-        validate: true,
-        strictValidation: false
-      })
-
-      // 3. 检查是否有自定义状态计算器
-      const customCalculator = this.customCalculators.get(nodeData.type)
-      if (customCalculator) {
-        this.log(`使用自定义状态计算器: ${nodeData.type}`)
-        return customCalculator(nodeData, configResult, options)
+      // 🔧 简化：优先使用强制指定的类型（执行器指定）
+      let calculationType
+      if (options.forceType) {
+        calculationType = options.forceType
+        this.log(`使用强制指定类型: ${nodeData.type} -> ${calculationType}`)
+      } else {
+        // 降级：简单检测（保持向后兼容）
+        calculationType = this.simpleTypeDetection(nodeData)
+        this.log(`自动检测类型: ${nodeData.type} -> ${calculationType}`)
       }
 
-      // 4. 根据数据格式选择计算策略
+      // 🔧 简化：如果已经有配置解析结果，直接使用
+      let configResult = options.configResult
+      if (!configResult) {
+        // 没有配置结果时，获取配置
+        configResult = configurationResolver.resolveConfiguration(nodeData, {
+          forceFormat: calculationType,
+          validate: true,
+          strictValidation: false
+        })
+      }
+
+      // 根据计算类型选择策略
       let statusResult
-      switch (dataFormat) {
+      switch (calculationType) {
         case 'legacy':
           statusResult = this.calculateLegacyNodeStatus(nodeData, configResult, options)
           break
@@ -197,15 +187,11 @@ class NodeStatusCalculator {
           statusResult = this.calculateDynamicNodeStatus(nodeData, configResult, options)
           break
           
-        case 'standard':
-          statusResult = this.calculateStandardNodeStatus(nodeData, configResult, options)
-          break
-          
         default:
           statusResult = this.calculateFallbackStatus(nodeData, configResult, options)
       }
 
-      // 5. 状态后处理和验证
+      // 状态后处理和验证
       return this.postProcessStatus(statusResult, nodeData, configResult)
 
     } catch (error) {
@@ -215,9 +201,24 @@ class NodeStatusCalculator {
   }
 
   /**
-   * 计算传统节点状态
-   * 
-   * 基于现有 NodeManager.getNodeStatus 的逻辑
+   * 🔧 简化：简单类型检测（仅作为降级）
+   */
+  simpleTypeDetection(nodeData) {
+    if (!nodeData || !nodeData.data) {
+      return 'unknown'
+    }
+
+    // 检查是否有 nodeConfig（动态节点的核心特征）
+    if (nodeData.data.nodeConfig || nodeData.nodeConfig) {
+      return 'dynamic'
+    }
+
+    // 其他情况默认为传统节点
+    return 'legacy'
+  }
+
+  /**
+   * 计算传统节点状态 - 保持核心逻辑
    */
   calculateLegacyNodeStatus(nodeData, configResult, options = {}) {
     try {
@@ -269,9 +270,7 @@ class NodeStatusCalculator {
   }
 
   /**
-   * 计算动态节点状态
-   * 
-   * 基于字段配置和验证规则
+   * 计算动态节点状态 - 保持核心逻辑
    */
   calculateDynamicNodeStatus(nodeData, configResult, options = {}) {
     try {
@@ -331,57 +330,7 @@ class NodeStatusCalculator {
   }
 
   /**
-   * 计算标准格式节点状态
-   */
-  calculateStandardNodeStatus(nodeData, configResult, options = {}) {
-    try {
-      const { data } = nodeData
-      const sourceType = data._metadata?.sourceType
-      
-      // 根据原始格式类型委托计算
-      if (sourceType === 'legacy') {
-        return this.calculateLegacyNodeStatus(nodeData, configResult, options)
-      } else if (sourceType === 'dynamic') {
-        return this.calculateDynamicNodeStatus(nodeData, configResult, options)
-      }
-      
-      // 标准格式的通用计算
-      const { config, validation } = configResult
-      
-      // 检查执行状态
-      if (data.isProcessing) {
-        return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.PROCESSING, {
-          reason: 'Standard node is processing'
-        })
-      }
-
-      // 检查结果
-      if (data.result) {
-        return data.result.error 
-          ? this.createStatusResult(NodeStatusCalculator.NODE_STATUS.ERROR, { error: data.result.error })
-          : this.createStatusResult(NodeStatusCalculator.NODE_STATUS.SUCCESS, { result: data.result })
-      }
-
-      // 验证配置
-      const configValidation = this.validateConfiguration(config, validation)
-      return configValidation.valid 
-        ? this.createStatusResult(NodeStatusCalculator.NODE_STATUS.CONFIGURED, { reason: 'Configuration valid' })
-        : this.createStatusResult(NodeStatusCalculator.NODE_STATUS.WAITING, { 
-            reason: 'Configuration incomplete',
-            errors: configValidation.errors 
-          })
-
-    } catch (error) {
-      this.log(`标准节点状态计算失败: ${error.message}`, 'error')
-      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.ERROR, {
-        reason: 'Standard node status calculation failed',
-        error: error.message
-      })
-    }
-  }
-
-  /**
-   * 降级状态计算
+   * 降级状态计算 - 保持不变
    */
   calculateFallbackStatus(nodeData, configResult, options = {}) {
     this.log(`使用降级状态计算: ${nodeData?.type}`, 'warn')
@@ -428,7 +377,7 @@ class NodeStatusCalculator {
     }
   }
 
-  // ===== 配置验证方法 =====
+  // ===== 配置验证方法 - 保持不变 =====
 
   /**
    * 验证传统节点配置
@@ -520,7 +469,6 @@ class NodeStatusCalculator {
    * 验证输出节点配置
    */
   validateOutputConfig(config) {
-    // 输出节点通常不需要严格的配置验证
     return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.CONFIGURED, {
       reason: 'Output node ready',
       displayMode: config.displayMode || 'auto'
@@ -531,7 +479,6 @@ class NodeStatusCalculator {
    * 验证下载节点配置
    */
   validateDownloadConfig(config) {
-    // 检查文件名格式
     if (config.customFileName && /[<>:"/\\|?*]/.test(config.customFileName)) {
       return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.INVALID, {
         reason: 'Invalid filename characters',
@@ -544,64 +491,68 @@ class NodeStatusCalculator {
       format: config.downloadFormat || 'auto'
     })
   }
-validateDynamicConfiguration(nodeConfig, config, validation) {
-  try {
-    if (!nodeConfig || !nodeConfig.fields) {
-      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.INVALID, {
-        reason: 'Missing node configuration or fields definition'
-      })
-    }
 
-    // 检查是否有可配置字段
-    const hasFields = nodeConfig.fields && nodeConfig.fields.length > 0
-    
-    if (!hasFields) {
-      // 无参数节点 → 已配置
+  /**
+   * 验证动态节点配置
+   */
+  validateDynamicConfiguration(nodeConfig, config, validation) {
+    try {
+      if (!nodeConfig || !nodeConfig.fields) {
+        return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.INVALID, {
+          reason: 'Missing node configuration or fields definition'
+        })
+      }
+
+      // 检查是否有可配置字段
+      const hasFields = nodeConfig.fields && nodeConfig.fields.length > 0
+      
+      if (!hasFields) {
+        // 无参数节点 → 已配置
+        return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.CONFIGURED, {
+          reason: 'No parameters required'
+        })
+      }
+
+      // 有参数节点：检查是否已保存
+      const hasSavedConfig = config._userSaved === true || config._configSaved === true
+      
+      if (!hasSavedConfig) {
+        // 有参数但未保存 → 等待
+        return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.WAITING, {
+          reason: 'Parameters require user save action'
+        })
+      }
+
+      // 已保存：验证必需字段
+      const missingRequired = []
+      
+      if (validation.required) {
+        validation.required.forEach(fieldName => {
+          const value = config[fieldName]
+          if (!value && value !== 0 && value !== false) {
+            missingRequired.push(fieldName)
+          }
+        })
+      }
+
+      if (missingRequired.length > 0) {
+        return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.WAITING, {
+          reason: 'Required fields missing',
+          missingFields: missingRequired
+        })
+      }
+
       return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.CONFIGURED, {
-        reason: 'No parameters required'
+        reason: 'Dynamic node properly configured'
+      })
+
+    } catch (error) {
+      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.ERROR, {
+        reason: 'Dynamic configuration validation failed',
+        error: error.message
       })
     }
-
-    // 有参数节点：检查是否已保存
-    const hasSavedConfig = config._userSaved === true || config._configSaved === true
-    
-    if (!hasSavedConfig) {
-      // 有参数但未保存 → 等待
-      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.WAITING, {
-        reason: 'Parameters require user save action'
-      })
-    }
-
-    // 已保存：验证必需字段
-    const missingRequired = []
-    
-    if (validation.required) {
-      validation.required.forEach(fieldName => {
-        const value = config[fieldName]
-        if (!value && value !== 0 && value !== false) {
-          missingRequired.push(fieldName)
-        }
-      })
-    }
-
-    if (missingRequired.length > 0) {
-      return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.WAITING, {
-        reason: 'Required fields missing',
-        missingFields: missingRequired
-      })
-    }
-
-    return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.CONFIGURED, {
-      reason: 'Dynamic node properly configured'
-    })
-
-  } catch (error) {
-    return this.createStatusResult(NodeStatusCalculator.NODE_STATUS.ERROR, {
-      reason: 'Dynamic configuration validation failed',
-      error: error.message
-    })
   }
-}
 
   /**
    * 通用配置验证
@@ -652,7 +603,7 @@ validateDynamicConfiguration(nodeConfig, config, validation) {
     return apiConfig && apiConfig.endpoint && apiConfig.endpoint.trim().length > 0
   }
 
-  // ===== 工具方法 =====
+  // ===== 工具方法 - 保持不变 =====
 
   /**
    * 创建状态结果对象
@@ -690,7 +641,6 @@ validateDynamicConfiguration(nodeConfig, config, validation) {
     // 添加节点特定信息
     statusResult.details.nodeType = nodeData.type
     statusResult.details.nodeId = nodeData.id
-    statusResult.details.dataFormat = StandardDataModel.detectDataFormat(nodeData)
     
     // 添加配置信息摘要
     if (configResult) {
@@ -721,14 +671,14 @@ validateDynamicConfiguration(nodeConfig, config, validation) {
   /**
    * 检查状态是否可执行
    */
-canExecuteWithStatus(status) {
-  const executableStatuses = [
-    NodeStatusCalculator.NODE_STATUS.WAITING,      // ✅ 等待配置
-    NodeStatusCalculator.NODE_STATUS.CONFIGURED,    // ✅ 已配置完成
-    NodeStatusCalculator.NODE_STATUS.SUCCESS 
-  ]
-  return executableStatuses.includes(status)
-}
+  canExecuteWithStatus(status) {
+    const executableStatuses = [
+      NodeStatusCalculator.NODE_STATUS.WAITING,
+      NodeStatusCalculator.NODE_STATUS.CONFIGURED,
+      NodeStatusCalculator.NODE_STATUS.SUCCESS 
+    ]
+    return executableStatuses.includes(status)
+  }
 
   /**
    * 生成状态缓存键
@@ -740,7 +690,7 @@ canExecuteWithStatus(status) {
       JSON.stringify(nodeData.data?.config || {}),
       nodeData.data?.result ? 'has-result' : 'no-result',
       nodeData.data?.isProcessing ? 'processing' : 'idle',
-      options.forceRecalculate ? 'force' : 'normal'
+      options.forceType || 'auto'
     ]
     
     return keyParts.join('|')
@@ -763,30 +713,7 @@ canExecuteWithStatus(status) {
     }
   }
 
-  // ===== 公共接口方法 =====
-
-  /**
-   * 注册自定义状态计算器
-   */
-  registerCustomCalculator(nodeType, calculator) {
-    if (typeof calculator !== 'function') {
-      throw new Error('Custom calculator must be a function')
-    }
-    
-    this.customCalculators.set(nodeType, calculator)
-    this.log(`自定义状态计算器已注册: ${nodeType}`, 'success')
-  }
-
-  /**
-   * 移除自定义状态计算器
-   */
-  unregisterCustomCalculator(nodeType) {
-    const removed = this.customCalculators.delete(nodeType)
-    if (removed) {
-      this.log(`自定义状态计算器已移除: ${nodeType}`)
-    }
-    return removed
-  }
+  // ===== 公共接口方法 - 保持不变 =====
 
   /**
    * 监听节点状态变化
@@ -841,14 +768,6 @@ canExecuteWithStatus(status) {
   }
 
   /**
-   * 初始化默认状态计算器
-   */
-  initializeDefaultCalculators() {
-    // 为特殊节点类型注册自定义计算器
-    // 例如：未来可以为特定的复杂节点添加专门的状态逻辑
-  }
-
-  /**
    * 清理缓存
    */
   clearCache() {
@@ -864,7 +783,6 @@ canExecuteWithStatus(status) {
       ...this.stats,
       cacheSize: this.statusCache.size,
       listenersCount: this.statusListeners.size,
-      customCalculatorsCount: this.customCalculators.size,
       cacheHitRate: this.stats.calculationCount > 0 
         ? (this.stats.cacheHits / this.stats.calculationCount * 100).toFixed(2) + '%' 
         : '0%'
@@ -924,20 +842,6 @@ canExecuteWithStatus(status) {
     }
     
     return styles[status] || 'default'
-  }
-
-  /**
-   * 获取调试信息
-   */
-  getDebugInfo() {
-    return {
-      stats: this.getStats(),
-      cacheKeys: Array.from(this.statusCache.keys()),
-      customCalculators: Array.from(this.customCalculators.keys()),
-      activeListeners: Array.from(this.statusListeners.keys()),
-      statusPriorities: NodeStatusCalculator.STATUS_PRIORITY,
-      supportedStatuses: Object.values(NodeStatusCalculator.NODE_STATUS)
-    }
   }
 }
 

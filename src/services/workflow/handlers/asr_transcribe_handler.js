@@ -10,10 +10,31 @@
 export default async function asrTranscribeHandler(input) {
   console.log(`[asrTranscribeHandler] === 开始执行ASR识别 ===`)
   
-  const { workflowData, userConfig } = input
+  // 🔧 新增：优先使用标准化数据
+  let audioFile = null
+  let actualUserConfig = {}
   
-  // 🔧 正确提取用户配置
-  const actualUserConfig = userConfig?.userConfig || userConfig?.configResult?.config || userConfig || {}
+  if (input.data) {
+    // 使用新的标准化输入
+    console.log('[DEBUG] 使用标准化输入数据:', input.data)
+    
+    // 从标准化数据中提取音频
+    audioFile = input.data.audioData || input.data
+    
+    // 从用户配置中提取参数
+    actualUserConfig = input.userConfig || {}
+  } else {
+    // 保持向后兼容：使用原有逻辑
+    console.log('[DEBUG] 使用传统输入格式')
+    const { workflowData, userConfig } = input
+    
+    // 🔧 正确提取用户配置
+    actualUserConfig = userConfig?.userConfig || userConfig?.configResult?.config || userConfig || {}
+    
+    // 从工作流数据中提取音频
+    audioFile = await extractAudioFile(workflowData)
+  }
+  
   const language = actualUserConfig.language || 'zh'
   const format = actualUserConfig.format || 'txt'
   const defaultEndpoint = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
@@ -22,17 +43,14 @@ export default async function asrTranscribeHandler(input) {
   const apiEndpoint = actualUserConfig.apiEndpoint || defaultEndpoint
   
   console.log('[DEBUG] ASR配置:', { language, format, apiEndpoint })
-  console.log('[DEBUG] 输入数据:', {
-    workflowDataType: typeof workflowData,
-    hasContent: !!workflowData?.content,
-    hasMetadata: !!workflowData?.metadata,
-    dataType: workflowData?.type
+  console.log('[DEBUG] 提取到的音频文件:', {
+    isFile: audioFile instanceof File,
+    fileName: audioFile?.name || 'N/A',
+    fileType: audioFile?.type || 'N/A',
+    fileSize: audioFile?.size || 'N/A'
   })
 
   try {
-    // 🎯 关键：从多媒体节点输出中提取音频文件（现在支持异步）
-    const audioFile = await extractAudioFile(workflowData)
-    
     if (!audioFile) {
       throw new Error('没有接收到有效的音频文件，请确保上游连接了多媒体输入节点')
     }
@@ -72,12 +90,13 @@ async function extractAudioFile(workflowData) {
     isFile: workflowData instanceof File,
     hasContent: !!workflowData?.content,
     contentType: typeof workflowData?.content,
+    dataType: workflowData?.type,
     fileName: workflowData instanceof File ? workflowData.name : 'N/A'
   })
   
-  // 🎯 优先：多媒体节点直接输出的File对象（标准格式）
+  // 🎯 优先：直接的File对象
   if (workflowData instanceof File) {
-    console.log('[DEBUG] ✅ 直接使用多媒体节点的File对象:', {
+    console.log('[DEBUG] ✅ 直接使用File对象:', {
       name: workflowData.name,
       size: workflowData.size,
       type: workflowData.type
@@ -85,7 +104,7 @@ async function extractAudioFile(workflowData) {
     return workflowData
   }
   
-  // 兼容：包装格式 {content: File}
+  // 🎯 优先：多媒体节点直接输出的File对象（标准格式）
   if (workflowData?.content instanceof File) {
     console.log('[DEBUG] ✅ 从包装格式提取File对象:', {
       name: workflowData.content.name,
@@ -95,10 +114,23 @@ async function extractAudioFile(workflowData) {
     return workflowData.content
   }
   
-  // 2. 直接的File对象（向后兼容）
-  if (workflowData instanceof File) {
-    console.log('[DEBUG] ✅ 直接File对象')
-    return workflowData
+  // WorkflowData 格式的音频数据
+  if (workflowData?.type === 'audio' && workflowData?.content?.audio) {
+    console.log('[DEBUG] ✅ 从WorkflowData提取音频信息')
+    const audioInfo = workflowData.content.audio
+    
+    // 如果有Blob URL，转换为File
+    if (audioInfo.url && audioInfo.url.startsWith('blob:')) {
+      try {
+        const response = await fetch(audioInfo.url)
+        const blob = await response.blob()
+        return new File([blob], audioInfo.name || 'audio.wav', { 
+          type: audioInfo.type || 'audio/wav' 
+        })
+      } catch (error) {
+        console.error('[DEBUG] Blob URL转换失败:', error)
+      }
+    }
   }
   
   // 3. Base64格式（如果多媒体节点输出base64）

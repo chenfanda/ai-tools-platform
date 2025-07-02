@@ -314,7 +314,7 @@ const formatFieldLabel = (key) => {
     .replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 
-// 媒体字段组件
+// 🔧 修复后的媒体字段组件 - 传递 File 对象而不是字符串
 const ImageField = ({ label, value, onChange }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
@@ -323,12 +323,19 @@ const ImageField = ({ label, value, onChange }) => (
       accept="image/*"
       onChange={(e) => {
         const file = e.target.files[0]
-        if (file) onChange(URL.createObjectURL(file))
+        if (file) {
+          // 🔧 修复：传递 File 对象而不是 URL 字符串
+          onChange(file)
+        }
       }}
       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
     />
     {value && (
-      <img src={value} alt="预览" className="mt-2 max-w-32 max-h-32 object-cover rounded border" />
+      <img 
+        src={value instanceof File ? URL.createObjectURL(value) : value} 
+        alt="预览" 
+        className="mt-2 max-w-32 max-h-32 object-cover rounded border" 
+      />
     )}
   </div>
 )
@@ -341,13 +348,16 @@ const AudioField = ({ label, value, onChange }) => (
       accept="audio/*"
       onChange={(e) => {
         const file = e.target.files[0]
-        if (file) onChange(URL.createObjectURL(file))
+        if (file) {
+          // 🔧 修复：传递 File 对象而不是 URL 字符串
+          onChange(file)
+        }
       }}
       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
     />
     {value && (
       <audio controls className="mt-2 w-full">
-        <source src={value} />
+        <source src={value instanceof File ? URL.createObjectURL(value) : value} />
       </audio>
     )}
   </div>
@@ -361,13 +371,16 @@ const VideoField = ({ label, value, onChange }) => (
       accept="video/*"
       onChange={(e) => {
         const file = e.target.files[0]
-        if (file) onChange(URL.createObjectURL(file))
+        if (file) {
+          // 🔧 修复：传递 File 对象而不是 URL 字符串
+          onChange(file)
+        }
       }}
       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
     />
     {value && (
       <video controls className="mt-2 max-w-64 max-h-32">
-        <source src={value} />
+        <source src={value instanceof File ? URL.createObjectURL(value) : value} />
       </video>
     )}
   </div>
@@ -380,12 +393,17 @@ const FileField = ({ label, value, onChange }) => (
       type="file"
       onChange={(e) => {
         const file = e.target.files[0]
-        if (file) onChange(file.name)
+        if (file) {
+          // 🔧 修复：传递 File 对象而不是文件名字符串
+          onChange(file)
+        }
       }}
       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
     />
     {value && (
-      <div className="mt-2 text-sm text-gray-600">📎 {value}</div>
+      <div className="mt-2 text-sm text-gray-600">
+        📎 {value instanceof File ? value.name : value}
+      </div>
     )}
   </div>
 )
@@ -1029,8 +1047,6 @@ const DownloadConfig = ({ node, onConfigSave }) => {
   }, [autoDownload, customFileName, customPath, downloadFormat, showProgress, allowRetry, node.data])
 
   // 保存配置
-// 在 WorkflowConfigPanel.jsx 的 DownloadConfig 组件中修改 handleSave 方法
-
 const handleSave = async () => {
   const configData = {
     autoDownload,

@@ -433,6 +433,7 @@ const handleSave = useCallback(async () => {
     // TODO: 稍后启用条件过滤
     // return safeConfig.fields.filter(shouldShowField)
   }, [safeConfig.fields]) // 🔧 移除 shouldShowField 依赖，避免循环
+  
   const renderField = useCallback((field) => {
     try {
       const value = fieldValues[field.name] || ''
@@ -657,7 +658,8 @@ const handleSave = useCallback(async () => {
                 onChange={(e) => {
                   const file = e.target.files[0]
                   if (file) {
-                    handleFieldChange(field.name, URL.createObjectURL(file))
+                    // 🔧 修复：确保传递 File 对象
+                    handleFieldChange(field.name, file)
                   }
                 }}
                 disabled={field.disabled}
@@ -666,7 +668,7 @@ const handleSave = useCallback(async () => {
               {value && (
                 <div className="mt-2">
                   <img 
-                    src={value} 
+                    src={value instanceof File ? URL.createObjectURL(value) : value}
                     alt="预览" 
                     className="max-w-32 max-h-32 object-cover rounded border border-gray-200 shadow-sm" 
                   />
@@ -688,7 +690,8 @@ const handleSave = useCallback(async () => {
                 onChange={(e) => {
                   const file = e.target.files[0]
                   if (file) {
-                    handleFieldChange(field.name, URL.createObjectURL(file))
+                    // 🔧 修复：确保传递 File 对象
+                    handleFieldChange(field.name, file)
                   }
                 }}
                 disabled={field.disabled}
@@ -697,7 +700,7 @@ const handleSave = useCallback(async () => {
               {value && (
                 <div className="mt-2">
                   <audio controls className="w-full">
-                    <source src={value} />
+                    <source src={value instanceof File ? URL.createObjectURL(value) : value} />
                     您的浏览器不支持音频播放
                   </audio>
                 </div>
@@ -718,7 +721,8 @@ const handleSave = useCallback(async () => {
                 onChange={(e) => {
                   const file = e.target.files[0]
                   if (file) {
-                    handleFieldChange(field.name, URL.createObjectURL(file))
+                    // 🔧 修复：确保传递 File 对象
+                    handleFieldChange(field.name, file)
                   }
                 }}
                 disabled={field.disabled}
@@ -727,7 +731,7 @@ const handleSave = useCallback(async () => {
               {value && (
                 <div className="mt-2">
                   <video controls className="max-w-64 max-h-32 rounded border border-gray-200">
-                    <source src={value} />
+                    <source src={value instanceof File ? URL.createObjectURL(value) : value} />
                     您的浏览器不支持视频播放
                   </video>
                 </div>
@@ -739,23 +743,24 @@ const handleSave = useCallback(async () => {
           )
         
         case 'url':
-                return (
-                  <FieldContainer>
-                    <input
-                      id={fieldId}
-                      type="url"
-                      value={value}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      placeholder={field.placeholder}
-                      disabled={field.disabled}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
-                        error 
-                          ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                          : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                      } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                    />
-                  </FieldContainer>
-                )
+          return (
+            <FieldContainer>
+              <input
+                id={fieldId}
+                type="url"
+                value={value}
+                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                placeholder={field.placeholder}
+                disabled={field.disabled}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
+                  error 
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              />
+            </FieldContainer>
+          )
+          
         case 'file':
           return (
             <FieldContainer>
@@ -765,7 +770,8 @@ const handleSave = useCallback(async () => {
                 onChange={(e) => {
                   const file = e.target.files[0]
                   if (file) {
-                    handleFieldChange(field.name, file.name)
+                    // 🔧 修复：确保传递 File 对象而不是文件名
+                    handleFieldChange(field.name, file)
                   }
                 }}
                 disabled={field.disabled}
@@ -775,7 +781,9 @@ const handleSave = useCallback(async () => {
                 <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-600">📎</span>
-                    <span className="text-sm text-gray-800 truncate">{value}</span>
+                    <span className="text-sm text-gray-800 truncate">
+                      {value instanceof File ? value.name : value}
+                    </span>
                   </div>
                 </div>
               )}
@@ -784,109 +792,110 @@ const handleSave = useCallback(async () => {
               </div>
             </FieldContainer>
           )
+          
         case 'date':
-  return (
-    <FieldContainer>
-      <input
-        id={fieldId}
-        type="date"
-        value={value}
-        onChange={(e) => handleFieldChange(field.name, e.target.value)}
-        disabled={field.disabled}
-        className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
-          error 
-            ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-        } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-      />
-    </FieldContainer>
-  )
-
-      case 'time':
-        return (
-          <FieldContainer>
-            <input
-              id={fieldId}
-              type="time"
-              value={value}
-              onChange={(e) => handleFieldChange(field.name, e.target.value)}
-              disabled={field.disabled}
-              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
-                error 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-              } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-            />
-          </FieldContainer>
-        )
-
-      case 'datetime':
-        return (
-          <FieldContainer>
-            <input
-              id={fieldId}
-              type="datetime-local"
-              value={value}
-              onChange={(e) => handleFieldChange(field.name, e.target.value)}
-              disabled={field.disabled}
-              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
-                error 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-              } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-            />
-          </FieldContainer>
-        )
-
-      case 'color':
-        return (
-          <FieldContainer>
-            <div className="flex gap-2">
+          return (
+            <FieldContainer>
               <input
                 id={fieldId}
-                type="color"
-                value={value || '#000000'}
+                type="date"
+                value={value}
                 onChange={(e) => handleFieldChange(field.name, e.target.value)}
                 disabled={field.disabled}
-                className="w-16 h-10 border border-gray-300 rounded cursor-pointer disabled:cursor-not-allowed"
-              />
-              <input
-                type="text"
-                value={value || '#000000'}
-                onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                placeholder="#000000"
-                disabled={field.disabled}
-                className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
                   error 
                     ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
                     : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                 } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              点击色块选择颜色，或直接输入十六进制颜色值
-            </div>
-          </FieldContainer>
-        )
+            </FieldContainer>
+          )
 
-      case 'email':
-        return (
-          <FieldContainer>
-            <input
-              id={fieldId}
-              type="email"
-              value={value}
-              onChange={(e) => handleFieldChange(field.name, e.target.value)}
-              placeholder={field.placeholder || '请输入邮箱地址'}
-              disabled={field.disabled}
-              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
-                error 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-              } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-            />
-          </FieldContainer>
-        )
+        case 'time':
+          return (
+            <FieldContainer>
+              <input
+                id={fieldId}
+                type="time"
+                value={value}
+                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                disabled={field.disabled}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
+                  error 
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              />
+            </FieldContainer>
+          )
+
+        case 'datetime':
+          return (
+            <FieldContainer>
+              <input
+                id={fieldId}
+                type="datetime-local"
+                value={value}
+                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                disabled={field.disabled}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
+                  error 
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              />
+            </FieldContainer>
+          )
+
+        case 'color':
+          return (
+            <FieldContainer>
+              <div className="flex gap-2">
+                <input
+                  id={fieldId}
+                  type="color"
+                  value={value || '#000000'}
+                  onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                  disabled={field.disabled}
+                  className="w-16 h-10 border border-gray-300 rounded cursor-pointer disabled:cursor-not-allowed"
+                />
+                <input
+                  type="text"
+                  value={value || '#000000'}
+                  onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                  placeholder="#000000"
+                  disabled={field.disabled}
+                  className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
+                    error 
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                />
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                点击色块选择颜色，或直接输入十六进制颜色值
+              </div>
+            </FieldContainer>
+          )
+
+        case 'email':
+          return (
+            <FieldContainer>
+              <input
+                id={fieldId}
+                type="email"
+                value={value}
+                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                placeholder={field.placeholder || '请输入邮箱地址'}
+                disabled={field.disabled}
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors ${
+                  error 
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                } ${field.disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              />
+            </FieldContainer>
+          )
 
         default:
           return (
@@ -1066,6 +1075,7 @@ const handleSave = useCallback(async () => {
             <div>有未保存更改: {hasChanges ? '是' : '否'}</div>
             <div>初始化状态: {isInitialized ? '已初始化' : '未初始化'}</div>
             <div>当前节点ID: {initializationRef.current}</div>
+            <div>🔧 文件上传: 传递 File 对象</div>
           </div>
         </div>
       )}

@@ -1,13 +1,12 @@
-// ===== src/extensions/workflow/utils/ConfigLoader.js - 最小硬编码版本 =====
+// ===== src/extensions/workflow/utils/ConfigLoader.js - 完整配置传递版本 =====
 
 /**
- * 配置文件加载器 - 最小硬编码，真正配置驱动
+ * 配置文件加载器 - 确保传递完整的JSON配置信息
  * 
- * 核心原则：
- * 1. 只维护文件名列表，不硬编码任何配置内容
- * 2. 显示名称从JSON文件的 meta.displayName 读取
- * 3. 新增节点：添加JSON文件 + 添加文件名到列表
- * 4. 完全读取真实的JSON配置文件
+ * 核心改进：
+ * 1. 返回完整的配置对象，包含所有Schema字段
+ * 2. 增强配置验证，覆盖所有必需和可选字段
+ * 3. 提供详细的配置摘要信息
  */
 
 class ConfigLoader {
@@ -17,7 +16,6 @@ class ConfigLoader {
     this.debugMode = process.env.NODE_ENV === 'development'
     
     // 唯一的硬编码：已知配置文件名列表
-    // 新增节点时只需在此添加文件名
     this.knownConfigFiles = [
       'media-input.json',
        'simple-test.json',
@@ -25,7 +23,7 @@ class ConfigLoader {
       // 新增节点文件名在此添加
     ]
     
-    this.log('[ConfigLoader] 最小硬编码配置加载器已初始化')
+    this.log('[ConfigLoader] 完整配置传递加载器已初始化')
   }
 
   /**
@@ -91,7 +89,7 @@ class ConfigLoader {
   }
 
   /**
-   * 加载单个配置文件
+   * 加载单个配置文件 - 返回完整配置对象
    */
   async loadConfigFile(configFile) {
     const cacheKey = configFile.fullPath
@@ -113,19 +111,132 @@ class ConfigLoader {
       // 更新配置文件信息的显示名称（从JSON读取）
       configFile.name = this._getDisplayNameFromConfig(config, configFile.id)
       
-      // 验证配置格式
-      const validatedConfig = this._validateConfig(config, configFile.fileName)
+      // 验证配置格式（完整验证）
+      const validatedConfig = this._validateCompleteConfig(config, configFile.fileName)
       
-      // 缓存配置
-      this.configCache.set(cacheKey, validatedConfig)
+      // 🔧 关键改进：构建完整的配置对象
+      const completeConfig = this._buildCompleteConfig(validatedConfig, configFile)
       
-      this.log(`成功加载配置: ${configFile.fileName} (${configFile.name})`, 'success')
-      return validatedConfig
+      // 缓存完整配置
+      this.configCache.set(cacheKey, completeConfig)
+      
+      this.log(`成功加载完整配置: ${configFile.fileName} (${configFile.name})`, 'success')
+      this._logConfigSummary(completeConfig)
+      
+      return completeConfig
       
     } catch (error) {
       this.log(`加载配置失败 ${configFile.fileName}: ${error.message}`, 'error')
       throw new Error(`配置文件加载失败: ${configFile.fileName} - ${error.message}`)
     }
+  }
+
+/**
+   * 🆕 构建完整的配置对象 - 确保所有字段都被包含
+   * 🔧 最小修复：添加 nodeConfig 字段，解决 ConfigurationResolver 的期望
+   */
+  _buildCompleteConfig(config, configFile) {
+    const completeConfig = {
+      // 📄 文件信息
+      _fileInfo: {
+        id: configFile.id,
+        fileName: configFile.fileName,
+        fullPath: configFile.fullPath,
+        loadedAt: new Date().toISOString()
+      },
+      
+      // 📋 核心配置字段（完整传递）
+      meta: config.meta,
+      node: config.node,
+      
+      // 🔧 数据流配置（关键字段）
+      inputSchema: config.inputSchema || {},
+      outputSchema: config.outputSchema || {},
+      
+      // 🎛️ UI配置字段
+      fields: config.fields || [],
+      nodeUI: config.nodeUI || {},
+      
+      // ⚙️ 执行配置
+      execution: config.execution || {},
+      
+      // 🧩 组件和数据配置
+      components: config.components,
+      data: config.data,
+      
+      // 📦 依赖配置
+      dependencies: config.dependencies || {},
+      
+      // 🔧 最小修复：添加 nodeConfig 字段（ConfigurationResolver 期望的格式）
+      nodeConfig: {
+        type: config.node.type,
+        label: config.node.label,
+        icon: config.node.icon,
+        description: config.node.description,
+        category: config.node.category,
+        theme: config.node.theme,
+        fields: config.fields || [],
+        validation: config.data?.validation || {},
+        defaultData: config.data?.defaultData || {},
+        execution: config.execution || {},
+        inputSchema: config.inputSchema || {},
+        outputSchema: config.outputSchema || {},
+        nodeUI: config.nodeUI || {},
+        meta: config.meta
+      },
+      
+      // 📊 配置摘要（便于调试）
+      _summary: this._generateConfigSummary(config)
+    }
+    
+    return completeConfig
+  }
+
+  /**
+   * 🆕 生成配置摘要信息
+   */
+  _generateConfigSummary(config) {
+    return {
+      nodeType: config.meta?.nodeId || 'unknown',
+      displayName: config.meta?.displayName || 'Unknown Node',
+      category: config.node?.category || 'unknown',
+      executionType: config.execution?.type || 'none',
+      
+      // 数据流信息
+      hasInputSchema: !!(config.inputSchema && Object.keys(config.inputSchema).length > 0),
+      hasOutputSchema: !!(config.outputSchema && Object.keys(config.outputSchema).length > 0),
+      inputFieldCount: config.inputSchema ? Object.keys(config.inputSchema).length : 0,
+      outputFieldCount: config.outputSchema ? Object.keys(config.outputSchema).length : 0,
+      
+      // UI配置信息
+      configFieldCount: config.fields ? config.fields.length : 0,
+      hasNodeUI: !!(config.nodeUI && Object.keys(config.nodeUI).length > 0),
+      
+      // 依赖信息
+      hasDependencies: !!(config.dependencies && Object.keys(config.dependencies).length > 0),
+      
+      // 组件信息
+      mainComponentType: config.components?.main?.type || 'unknown',
+      configComponentType: config.components?.config?.type || 'none'
+    }
+  }
+
+  /**
+   * 🆕 输出配置摘要日志
+   */
+  _logConfigSummary(completeConfig) {
+    if (!this.debugMode) return
+    
+    const summary = completeConfig._summary
+    this.log(`配置摘要 [${summary.nodeType}]:`, 'info')
+    console.log(`  ├─ 显示名称: ${summary.displayName}`)
+    console.log(`  ├─ 分类: ${summary.category}`)
+    console.log(`  ├─ 执行类型: ${summary.executionType}`)
+    console.log(`  ├─ 输入Schema: ${summary.hasInputSchema ? `✅ (${summary.inputFieldCount}字段)` : '❌'}`)
+    console.log(`  ├─ 输出Schema: ${summary.hasOutputSchema ? `✅ (${summary.outputFieldCount}字段)` : '❌'}`)
+    console.log(`  ├─ 配置字段: ${summary.configFieldCount}个`)
+    console.log(`  ├─ UI配置: ${summary.hasNodeUI ? '✅' : '❌'}`)
+    console.log(`  └─ 依赖配置: ${summary.hasDependencies ? '✅' : '❌'}`)
   }
 
   /**
@@ -155,15 +266,13 @@ class ConfigLoader {
   }
 
   /**
-   * 从配置JSON中获取显示名称（避免硬编码）
+   * 从配置JSON中获取显示名称
    */
   _getDisplayNameFromConfig(config, fileId) {
-    // 优先使用JSON中的显示名称
     if (config && config.meta && config.meta.displayName) {
       return config.meta.displayName
     }
     
-    // 降级：根据文件ID生成显示名称
     return fileId
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -171,13 +280,13 @@ class ConfigLoader {
   }
 
   /**
-   * 验证配置文件格式
+   * 🔧 增强的完整配置验证
    */
-  _validateConfig(config, fileName) {
+  _validateCompleteConfig(config, fileName) {
     try {
       const errors = []
       
-      // 验证必需的顶级字段
+      // ✅ 验证必需的顶级字段
       const requiredFields = ['meta', 'node', 'components', 'data']
       requiredFields.forEach(field => {
         if (!config[field]) {
@@ -185,14 +294,14 @@ class ConfigLoader {
         }
       })
       
-      // 验证 meta 字段
+      // ✅ 验证 meta 字段
       if (config.meta) {
         if (!config.meta.configVersion) errors.push('meta.configVersion 是必需的')
         if (!config.meta.nodeId) errors.push('meta.nodeId 是必需的')
         if (!config.meta.displayName) errors.push('meta.displayName 是必需的')
       }
       
-      // 验证 node 字段
+      // ✅ 验证 node 字段
       if (config.node) {
         const nodeRequiredFields = ['type', 'label', 'icon', 'description', 'category', 'theme']
         nodeRequiredFields.forEach(field => {
@@ -202,24 +311,38 @@ class ConfigLoader {
         })
       }
       
-      // 验证 fields 字段（如果存在）
-      if (config.fields && !Array.isArray(config.fields)) {
-        errors.push('fields 必须是数组')
+      // 🆕 验证 inputSchema 字段
+      if (config.inputSchema) {
+        this._validateSchema(config.inputSchema, 'inputSchema', errors)
       }
       
-      // 验证 execution 字段（如果存在）
+      // 🆕 验证 outputSchema 字段
+      if (config.outputSchema) {
+        this._validateSchema(config.outputSchema, 'outputSchema', errors)
+      }
+      
+      // 🆕 验证 fields 字段
+      if (config.fields) {
+        if (!Array.isArray(config.fields)) {
+          errors.push('fields 必须是数组')
+        } else {
+          this._validateFieldsArray(config.fields, errors)
+        }
+      }
+      
+      // 🆕 验证 nodeUI 字段
+      if (config.nodeUI) {
+        this._validateNodeUI(config.nodeUI, errors)
+      }
+      
+      // 🔧 增强的 execution 验证
       if (config.execution) {
-        if (!config.execution.type) {
-          errors.push('execution.type 是必需的')
-        }
-        
-        if (config.execution.type === 'api' && !config.execution.endpoint) {
-          errors.push('API执行类型需要 execution.endpoint')
-        }
-        
-        if (config.execution.type === 'local' && !config.execution.handler) {
-          errors.push('本地执行类型需要 execution.handler')
-        }
+        this._validateExecution(config.execution, errors)
+      }
+      
+      // 🆕 验证 dependencies 字段
+      if (config.dependencies) {
+        this._validateDependencies(config.dependencies, errors)
       }
       
       if (errors.length > 0) {
@@ -228,7 +351,7 @@ class ConfigLoader {
         throw new Error(errorMessage)
       }
       
-      this.log(`配置验证通过: ${fileName}`, 'success')
+      this.log(`完整配置验证通过: ${fileName}`, 'success')
       return config
       
     } catch (error) {
@@ -237,7 +360,86 @@ class ConfigLoader {
   }
 
   /**
-   * 加载所有配置文件
+   * 🆕 验证 Schema 字段（inputSchema/outputSchema）
+   */
+  _validateSchema(schema, schemaName, errors) {
+    if (typeof schema !== 'object') {
+      errors.push(`${schemaName} 必须是对象`)
+      return
+    }
+    
+    Object.entries(schema).forEach(([fieldName, fieldDef]) => {
+      if (!fieldDef.type) {
+        errors.push(`${schemaName}.${fieldName} 缺少 type 字段`)
+      }
+    })
+  }
+
+  /**
+   * 🆕 验证 fields 数组
+   */
+  _validateFieldsArray(fields, errors) {
+    fields.forEach((field, index) => {
+      if (!field.name) errors.push(`fields[${index}] 缺少 name 字段`)
+      if (!field.type) errors.push(`fields[${index}] 缺少 type 字段`)
+      if (!field.label) errors.push(`fields[${index}] 缺少 label 字段`)
+    })
+  }
+
+  /**
+   * 🆕 验证 nodeUI 配置
+   */
+  _validateNodeUI(nodeUI, errors) {
+    if (nodeUI.actions && !Array.isArray(nodeUI.actions)) {
+      errors.push('nodeUI.actions 必须是数组')
+    }
+  }
+
+  /**
+   * 🔧 增强的 execution 验证
+   */
+  _validateExecution(execution, errors) {
+    if (!execution.type) {
+      errors.push('execution.type 是必需的')
+    }
+    
+    if (execution.type === 'api' && !execution.endpoint) {
+      errors.push('API执行类型需要 execution.endpoint')
+    }
+    
+    if (execution.type === 'local' && !execution.handler) {
+      errors.push('本地执行类型需要 execution.handler')
+    }
+    
+    // 验证数值字段
+    if (execution.timeout && (typeof execution.timeout !== 'number' || execution.timeout < 1)) {
+      errors.push('execution.timeout 必须是大于0的数字')
+    }
+    
+    if (execution.retry && (typeof execution.retry !== 'number' || execution.retry < 0)) {
+      errors.push('execution.retry 必须是非负数字')
+    }
+  }
+
+  /**
+   * 🆕 验证 dependencies 配置
+   */
+  _validateDependencies(dependencies, errors) {
+    if (dependencies.apis && !Array.isArray(dependencies.apis)) {
+      errors.push('dependencies.apis 必须是数组')
+    }
+    
+    if (dependencies.libraries && !Array.isArray(dependencies.libraries)) {
+      errors.push('dependencies.libraries 必须是数组')
+    }
+    
+    if (dependencies.permissions && !Array.isArray(dependencies.permissions)) {
+      errors.push('dependencies.permissions 必须是数组')
+    }
+  }
+
+  /**
+   * 加载所有配置文件 - 返回完整配置对象
    */
   async loadAllConfigs() {
     const results = {
@@ -251,7 +453,6 @@ class ConfigLoader {
     }
     
     try {
-      // 发现配置文件
       const configFiles = await this.discoverConfigFiles()
       results.summary.total = configFiles.length
       
@@ -260,15 +461,19 @@ class ConfigLoader {
         return results
       }
       
-      this.log(`开始加载 ${configFiles.length} 个配置文件...`)
+      this.log(`开始加载 ${configFiles.length} 个完整配置文件...`)
       
-      // 逐个加载配置文件
       for (const configFile of configFiles) {
         try {
-          const config = await this.loadConfigFile(configFile)
+          const completeConfig = await this.loadConfigFile(configFile)
+          
+          // 🔧 关键改进：传递完整配置对象
           results.configs.push({
             source: configFile,
-            config: config
+            config: completeConfig,  // 这里是完整的配置对象，包含所有字段
+            nodeType: completeConfig.meta.nodeId,
+            displayName: completeConfig.meta.displayName,
+            summary: completeConfig._summary
           })
           results.summary.success++
           
@@ -282,7 +487,7 @@ class ConfigLoader {
       }
       
       this.log(
-        `配置加载完成: ${results.summary.success} 成功, ${results.summary.failed} 失败`, 
+        `完整配置加载完成: ${results.summary.success} 成功, ${results.summary.failed} 失败`, 
         'success'
       )
       
@@ -299,7 +504,21 @@ class ConfigLoader {
   }
 
   /**
-   * 动态添加新配置文件 (扩展接口)
+   * 🆕 获取指定节点的完整配置
+   */
+  async getNodeConfig(nodeId) {
+    const fileName = `${nodeId}.json`
+    
+    if (!this.knownConfigFiles.includes(fileName)) {
+      throw new Error(`未知的节点配置: ${nodeId}`)
+    }
+    
+    const configFile = this._createConfigFileInfo(fileName)
+    return await this.loadConfigFile(configFile)
+  }
+
+  /**
+   * 动态添加新配置文件
    */
   addConfigFile(fileName) {
     if (!this.knownConfigFiles.includes(fileName)) {

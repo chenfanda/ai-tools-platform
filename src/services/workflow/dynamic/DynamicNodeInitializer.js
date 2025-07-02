@@ -1,4 +1,4 @@
-// ===== src/services/workflow/dynamic/DynamicNodeInitializer.js - 动态节点初始化器 =====
+// ===== src/services/workflow/dynamic/DynamicNodeInitializer.js - 修复数据传递版本 =====
 
 // 导入动态节点注册表
 import dynamicNodeRegistry from './DynamicNodeRegistry'
@@ -9,18 +9,18 @@ import { LEGACY_NODES_CONFIG } from '../legacy/LegacyNodesConfig'
 import ConfigLoader from './ConfigLoader' 
 
 /**
- * 动态节点初始化器 - 重命名自 NodeRegistryInitializer
+ * 动态节点初始化器 - 修复数据传递版本
+ * 
+ * 🔧 关键修复：
+ * 1. 确保完整的 JSON 配置被正确传递给注册表
+ * 2. 修复对象展开顺序问题，避免关键字段被覆盖
+ * 3. 明确保留 inputSchema、outputSchema、execution 等关键字段
  * 
  * 核心职责：
  * 1. 初始化动态节点注册表
  * 2. 加载JSON配置文件中的节点
  * 3. 注册传统节点到动态注册表
  * 4. 提供安全的初始化机制
- * 
- * 改造说明：
- * - 从 NodeRegistryInitializer.js 重命名而来
- * - 移动到 dynamic 目录下
- * - 保持原有功能完全不变
  */
 class DynamicNodeInitializer {
   constructor() {
@@ -31,9 +31,9 @@ class DynamicNodeInitializer {
     
     this.debugMode = process.env.NODE_ENV === 'development'
 
-    this.configLoader = new ConfigLoader()  // 🔧 添加 ConfigLoader 实例
+    this.configLoader = new ConfigLoader()
     
-    this.log('[DynamicNodeInitializer] 动态节点初始化器已创建')
+    this.log('[DynamicNodeInitializer] 动态节点初始化器已创建（修复数据传递版本）')
   }
 
   /**
@@ -62,8 +62,6 @@ class DynamicNodeInitializer {
 
   /**
    * 安全的自动初始化
-   * 
-   * 这是主要的入口方法，被 WorkflowEditor 调用
    */
   async safeAutoInitialize() {
     try {
@@ -224,13 +222,14 @@ class DynamicNodeInitializer {
   }
 
   /**
-   * 加载JSON配置文件中的节点
+   * 🔧 关键修复：加载JSON配置文件中的节点
+   * 主要修复：确保完整配置被正确传递，避免关键字段丢失
    */
   async loadJsonConfigs() {
     try {
       this.log('开始使用 ConfigLoader 加载JSON配置节点')
 
-      // 🔧 使用 ConfigLoader 自动发现和加载所有配置
+      // 使用 ConfigLoader 自动发现和加载所有配置
       const loadResult = await this.configLoader.loadAllConfigs()
       
       this.log(`ConfigLoader 发现 ${loadResult.summary.total} 个配置文件，成功加载 ${loadResult.summary.success} 个`)
@@ -246,20 +245,23 @@ class DynamicNodeInitializer {
             throw new Error('配置格式无效：缺少 node.type')
           }
           
-          // 转换配置格式并注册到 DynamicNodeRegistry
-          const registered = this.registry.registerFullNodeConfig(config.node.type, {
-            ...config.node,
-            fields: config.fields || [],
-            sourceType: 'json',
-            _source: 'dynamic',
-            _configFile: configItem.source.fileName,
-            defaultData: config.data?.defaultData || {},
-            validation: config.data?.validation || {},
-            meta: config.meta,
-            execution: config.execution,  // 🔧 添加这一行
-            component: null,  // 让系统自动分配 DynamicNode
-            configComponent: 'DynamicConfigPanel'
-          })
+          // 🔧 关键修复：构建完整配置，确保所有字段都被保留
+          const completeNodeConfig = this.buildCompleteNodeConfig(config, configItem)
+          
+          // 🔧 调试：输出配置内容检查
+          if (this.debugMode) {
+            this.log(`配置构建完成 ${config.node.type}:`, {
+              hasInputSchema: !!completeNodeConfig.inputSchema,
+              hasOutputSchema: !!completeNodeConfig.outputSchema,
+              hasExecution: !!completeNodeConfig.execution,
+              hasFields: !!completeNodeConfig.fields?.length,
+              inputSchemaKeys: completeNodeConfig.inputSchema ? Object.keys(completeNodeConfig.inputSchema) : [],
+              executionHandler: completeNodeConfig.execution?.handler
+            })
+          }
+          
+          // 注册到 DynamicNodeRegistry
+          const registered = this.registry.registerFullNodeConfig(config.node.type, completeNodeConfig)
 
           if (registered !== false) {
             result.success++
@@ -288,6 +290,78 @@ class DynamicNodeInitializer {
 
     } catch (error) {
       this.log(`JSON配置加载过程失败: ${error.message}`, 'error')
+      throw error
+    }
+  }
+
+  /**
+   * 🆕 构建完整的节点配置
+   * 🎯 核心原则：100% 保留原始JSON配置，只添加注册表需要的最小标识字段
+   */
+  buildCompleteNodeConfig(config, configItem) {
+    try {
+      // 🔧 关键修复：完整保留JSON配置 + 最小必要的注册表字段
+      const completeConfig = {
+        // ===== 完整保留原始JSON配置的所有数据 =====
+        ...config,  // 保留 meta、node、inputSchema、outputSchema、fields、execution、nodeUI、components、data、dependencies 等所有字段
+        
+        // ===== 只添加注册表运行必需的最小字段 =====
+        // 从 node 部分提取给注册表用的字段（不覆盖原有字段）
+        type: config.node?.type || config.meta?.nodeId,
+        label: config.node?.label || config.meta?.displayName,
+        icon: config.node?.icon || '⚙️',
+        description: config.node?.description || config.meta?.description,
+        category: config.node?.category || 'general',
+        theme: config.node?.theme || 'blue',
+        
+        // 从 data 部分提取默认数据（如果没有顶级字段）
+        defaultData: config.defaultData || config.data?.defaultData || {},
+        validation: config.validation || config.data?.validation || {},
+        
+        // 注册表标识（不影响原有数据）
+        sourceType: 'json',
+        _source: 'dynamic',
+        _configFile: configItem.source.fileName,
+        _rawConfig: config,  // 保存原始配置的完整引用
+        
+        // 组件映射
+        component: null,  // 使用 DynamicNode
+        configComponent: 'DynamicConfigPanel'
+      }
+      
+      // 🔧 验证完整性：确保关键JSON字段都存在
+      const completenessCheck = {
+        hasMeta: !!completeConfig.meta,
+        hasNode: !!completeConfig.node,
+        hasInputSchema: !!completeConfig.inputSchema,
+        hasOutputSchema: !!completeConfig.outputSchema,
+        hasFields: !!completeConfig.fields,
+        hasExecution: !!completeConfig.execution,
+        hasComponents: !!completeConfig.components,
+        hasData: !!completeConfig.data,
+        originalConfigKeys: Object.keys(config),
+        finalConfigKeys: Object.keys(completeConfig)
+      }
+      
+      if (this.debugMode) {
+        this.log(`JSON配置完整性检查 ${config.node?.type}:`, completenessCheck)
+        
+        // 确保没有数据丢失
+        const originalKeys = Object.keys(config)
+        const finalKeys = Object.keys(completeConfig)
+        const missingKeys = originalKeys.filter(key => !finalKeys.includes(key))
+        
+        if (missingKeys.length > 0) {
+          this.log(`⚠️ 检测到缺失的配置字段 ${config.node?.type}:`, missingKeys, 'warn')
+        } else {
+          this.log(`✅ JSON配置完整保留 ${config.node?.type}`, 'success')
+        }
+      }
+      
+      return completeConfig
+      
+    } catch (error) {
+      this.log(`构建完整配置失败 ${config.node?.type}: ${error.message}`, 'error')
       throw error
     }
   }
