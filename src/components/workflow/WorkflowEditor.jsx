@@ -160,7 +160,7 @@ const WorkflowEditor = ({ config, onNotification }) => {
     setNodes(currentNodes => {
       const updatedNodes = currentNodes.map(node => 
         node.id === nodeId 
-          ? { ...node, data: { ...node.data.config, ...newData } }
+          ? { ...node, data: { ...node.data, ...newData } ,config:{...node.data.config,...newData}}
           : node
       )
       // 重新计算所有节点数据
@@ -496,7 +496,7 @@ const WorkflowEditor = ({ config, onNotification }) => {
     await new Promise(resolve => setTimeout(resolve, 200))
     
     // 🔧 开发环境：暴露节点数据到全局，便于调试
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' && false) {
       window.__workflowNodes = calibratedNodes
       window.__originalNodes = nodes
       console.log('🔧 调试模式：节点数据已暴露到 window.__workflowNodes 和 window.__originalNodes')
@@ -631,7 +631,7 @@ const WorkflowEditor = ({ config, onNotification }) => {
 
   // ===== 📌 新增：管理器重新初始化功能 (开发环境) =====
   const handleManagerReinit = useCallback(async () => {
-    if (process.env.NODE_ENV !== 'development') {
+    if (process.env.NODE_ENV !== 'development'&& false) {
       addExecutionLogRef.current('管理器重新初始化仅在开发环境可用', 'warn')
       return
     }

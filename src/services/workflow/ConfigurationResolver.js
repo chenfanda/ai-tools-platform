@@ -16,7 +16,8 @@ class ConfigurationResolver {
     this.configCache = new Map()
     
     // 调试模式
-    this.debugMode = process.env.NODE_ENV === 'development'
+    // this.debugMode = process.env.NODE_ENV === 'development'
+    this.debugMode = false
     
     // 配置解析统计
     this.stats = {
@@ -748,9 +749,6 @@ class ConfigurationResolver {
 // 创建单例实例
 const configurationResolver = new ConfigurationResolver()
 
-// 开发环境下暴露到全局，便于调试
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  window.__configurationResolver = configurationResolver
-}
+
 
 export default configurationResolver
