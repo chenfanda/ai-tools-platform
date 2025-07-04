@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
  * 核心功能：
  * 1. 基于 nodeConfig.fields 自动生成配置表单
  * 2. 实时验证和错误显示
- * 3. 与 DynamicNode 保持数据同步
+ * 3. 与 DynamicNode 保持数据同步u
  * 4. 支持多种字段类型和复杂验证
  * 5. 完整的错误处理和降级保护
  * 

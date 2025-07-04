@@ -92,7 +92,7 @@ const BaseWorkflowNode = ({
   return (
     <div className="flex flex-col items-center">
       {/* 隐藏 ReactFlow 默认样式 */}
-      <style jsx>{`
+      <style>{`
         :global(.react-flow__node[data-id="${nodeId}"]) {
           outline: none !important;
           border: none !important;

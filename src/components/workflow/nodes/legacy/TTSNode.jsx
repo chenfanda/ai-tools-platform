@@ -188,44 +188,6 @@ const TTSNode = ({ data, selected, id }) => {
           </div>
         </div>
 
-        {/* 执行状态 */}
-        <div>
-          <label className="text-xs font-medium text-gray-700 mb-1 block">
-            执行状态
-          </label>
-          
-          {isProcessing && (
-            <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm text-blue-700">正在合成语音...</span>
-            </div>
-          )}
-          
-          {result?.success && (
-            <div className="p-2 bg-green-50 rounded-lg border border-green-200">
-              <div className="text-sm font-medium text-green-800">✅ 合成成功</div>
-              <div className="text-xs text-green-600 mt-1">
-                音频ID: {result.audio_id?.substring(0, 12)}...
-              </div>
-            </div>
-          )}
-          
-          {result?.error && (
-            <div className="p-2 bg-red-50 rounded-lg border border-red-200">
-              <div className="text-sm font-medium text-red-800">❌ 合成失败</div>
-              <div className="text-xs text-red-600 mt-1">
-                {result.error}
-              </div>
-            </div>
-          )}
-          
-          {!isProcessing && !result && (
-            <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="text-sm text-gray-600">等待执行</div>
-            </div>
-          )}
-        </div>
-
         {/* 底部信息 */}
         <div className="flex justify-between items-center text-xs">
           <span className="text-gray-500">

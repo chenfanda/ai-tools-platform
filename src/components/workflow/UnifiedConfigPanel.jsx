@@ -9,7 +9,7 @@ import WorkflowConfigPanel from './WorkflowConfigPanel'
 
 /**
  * 真正的键盘/鼠标分离版配置面板
- * 
+ * _
  * 核心原则：
  * 🎹 键盘输入：只操作 DOM 和 ref，零状态更新，零重新渲染
  * 🖱️ 鼠标操作：才进行状态更新、验证、保存
@@ -17,7 +17,7 @@ import WorkflowConfigPanel from './WorkflowConfigPanel'
 const UnifiedConfigPanel = ({ node, onConfigSave }) => {
   
   // 传统节点直接使用 WorkflowConfigPanel
-  const legacyNodeTypes = ['text-input', 'tts', 'output', 'download']
+  const legacyNodeTypes = ['text-input', 'tts', 'output', 'downlo_ad']
   if (legacyNodeTypes.includes(node?.type)) {
     return <WorkflowConfigPanel node={node} onConfigSave={onConfigSave} />
   }

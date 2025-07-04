@@ -204,28 +204,14 @@ const DynamicNode = ({
   const getTotalNodes = () => data.totalNodes || 1
 
 // ✅ 修复：改为使用已保存的节点数据
+// 简化状态判断，和参数面板保持一致
 const getConfigStatus = useMemo(() => {
   if (renderError) return 'error'
   
-  try {
-    // 🔧 关键修改：使用统一状态计算器，基于已保存的数据
-    const nodeData = {
-      id,
-      type: safeConfig.type,
-      data: {
-        ...data,
-        nodeConfig: safeConfig
-      }
-    }
-    
-    const statusResult = nodeStatusCalculator.calculateNodeStatus(nodeData)
-    return statusResult.status
-    
-  } catch (error) {
-    console.error('[DynamicNode] 状态计算失败:', error)
-    return 'error'
-  }
-}, [id, safeConfig.type, data, renderError])  // 🔧 依赖已保存的数据，不依赖fieldValues
+  // 直接检查保存标记，和参数面板逻辑一致
+  const hasSaved = data._userSaved || data.config?._userSaved
+  return hasSaved ? 'configured' : 'waiting'
+}, [renderError, data._userSaved, data.config?._userSaved])
 
   // ===== 简化的数据标准化方法 =====
   const normalizeNodeOutput = (nodeType, outputData, nodeId) => {
