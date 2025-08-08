@@ -18,7 +18,8 @@ import {
 
 class DataValidator {
   constructor() {
-    this.debugMode = process.env.NODE_ENV === 'development'
+    this.debugMode = false
+    // this.debugMode = process.env.NODE_ENV === 'development'
     this.customValidators = new Map()
   }
 

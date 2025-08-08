@@ -55,7 +55,9 @@ class UnifiedNodeManager {
     }
     
     // 调试模式
-    this.debugMode = process.env.NODE_ENV === 'development'
+    // this.debugMode = process.env.NODE_ENV === 'development'
+
+    this.debugMode = false
     
     // 初始化
     this.initialize()
@@ -1216,8 +1218,8 @@ class UnifiedNodeManager {
 const unifiedNodeManager = new UnifiedNodeManager()
 
 // 开发环境下暴露到全局，便于调试
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  window.__unifiedNodeManager = unifiedNodeManager
-}
+// if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+//   window.__unifiedNodeManager = unifiedNodeManager
+// }
 
 export default unifiedNodeManager

@@ -29,8 +29,8 @@ class DynamicNodeInitializer {
     this.initializationAttempts = 0
     this.maxRetries = 3
     
-    this.debugMode = process.env.NODE_ENV === 'development'
-
+    // this.debugMode = process.env.NODE_ENV === 'development'
+    this.debugMode = false
     this.configLoader = new ConfigLoader()
     
     this.log('[DynamicNodeInitializer] 动态节点初始化器已创建（修复数据传递版本）')
@@ -471,9 +471,9 @@ class DynamicNodeInitializer {
 // 创建单例实例
 const dynamicNodeInitializer = new DynamicNodeInitializer()
 
-// 开发环境下暴露到全局，便于调试
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  window.__dynamicNodeInitializer = dynamicNodeInitializer
-}
+// // 开发环境下暴露到全局，便于调试
+// if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+//   window.__dynamicNodeInitializer = dynamicNodeInitializer
+// }
 
 export default dynamicNodeInitializer

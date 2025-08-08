@@ -26,7 +26,7 @@ const UnifiedConfigPanel = ({ node, onConfigSave }) => {
   // 传统节点：继续使用 WorkflowConfigPanel
   const legacyNodeTypes = ['text-input', 'tts', 'output', 'download']
   if (legacyNodeTypes.includes(node?.type)) {
-    console.log(`[UnifiedConfigPanel] 路由到传统面板: ${node.type}`)
+    // console.log(`[UnifiedConfigPanel] 路由到传统面板: ${node.type}`)
     return <WorkflowConfigPanel node={node} onConfigSave={onConfigSave} />
   }
   

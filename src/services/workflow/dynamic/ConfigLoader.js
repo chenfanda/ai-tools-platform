@@ -13,7 +13,8 @@ class ConfigLoader {
   constructor() {
     this.configCache = new Map()
     this.configDirectory = '/src/extensions/workflow/configs/dynamic'
-    this.debugMode = process.env.NODE_ENV === 'development'
+    this.debugMode = false
+    // this.debugMode = process.env.NODE_ENV === 'development'
     
     // 唯一的硬编码：已知配置文件名列表
     this.knownConfigFiles = [

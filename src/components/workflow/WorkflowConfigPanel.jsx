@@ -84,7 +84,7 @@ const WorkflowConfigPanel = ({ node, onConfigSave }) => {
       lastRoutedNodeType.current = null
     }
   }, [])
-
+549644
   // ===== 主渲染 =====
   if (!node) {
     return (
@@ -508,7 +508,7 @@ const TTSConfigEnhanced = ({ node, onConfigSave }) => {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
-            </div>
+            </div>UnifiedConfigPanel
           </div>
         </div>
       </div>

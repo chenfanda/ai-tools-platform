@@ -70,7 +70,8 @@ class DynamicNodeRegistry {
     this.enableFallback = true
     
     // 调试日志
-    this.debugMode = process.env.NODE_ENV === 'development'
+    // this.debugMode = process.env.NODE_ENV === 'development'
+    this.debugMode = false
 
     // 缓存机制
     this._nodeTypesCache = null
@@ -1574,8 +1575,8 @@ registerFullNodeConfig(type, config) {
 const dynamicNodeRegistry = new DynamicNodeRegistry()
 
 // 开发环境下暴露到全局，便于调试
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  window.__dynamicNodeRegistry = dynamicNodeRegistry
-}
+// if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+//   window.__dynamicNodeRegistry = dynamicNodeRegistry
+// }
 
 export default dynamicNodeRegistry
