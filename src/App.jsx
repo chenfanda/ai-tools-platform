@@ -14,7 +14,9 @@ function App() {
     ttsApiUrl: isProduction ? 'https://tts-api.181901.xyz' : 'http://localhost:8000',
     videoApiUrl: isProduction ? 'https://videos-api.181901.xyz' : 'http://localhost:8001',
     asrApiUrl: isProduction ? 'https://asr-api.181901.xyz' : 'http://localhost:8002',
-    imageApiUrl: isProduction ? 'https://images-api.181901.xyz' : 'http://localhost:8003'
+    imageApiUrl: isProduction ? 'https://images-api.181901.xyz' : 'http://localhost:8003',
+    facialApiUrl: isProduction ? 'https://facial-api.181901.xyz' : 'http://localhost:8004',
+    styleganApiUrl: isProduction ? 'https://stylegan-api.181901.xyz' : 'http://localhost:8005'
   })
   // const [config, setConfig] = useState({
   //   ttsApiUrl: 'http://localhost:8000',

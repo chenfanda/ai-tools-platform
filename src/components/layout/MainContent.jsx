@@ -11,7 +11,7 @@ const MainContent = ({ currentPage, config, onNotification }) => {
   const [subPages, setSubPages] = useState({
     tts: 'voice-synthesis',     // TTS默认显示语音合成
     video: 'standard-video',    // Video默认显示标准视频
-    image: 'remove-bg'          // Image默认显示背景移除
+    image: 'basic-tools'        // ✅ 修改：basic-tools
   })
 
   // 需要侧边栏的页面

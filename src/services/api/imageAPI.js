@@ -19,14 +19,15 @@ class ImageAPIService {
   async callAPI(endpoint, formData, options = {}) {
     const {
       timeout = 30000,
-      onProgress = null
+      onProgress = null,
+      baseUrl = this.baseUrl  // 新增：支持自定义baseUrl
     } = options
 
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const response = await fetch(`${baseUrl}${endpoint}`, {  // 修改：使用可配置的baseUrl
         method: 'POST',
         body: formData,
         signal: controller.signal,
@@ -82,6 +83,233 @@ class ImageAPIService {
       throw new Error('获取系统状态失败')
     }
     return await response.json()
+  }
+
+  /**
+   * StyleGAN2人脸风格化处理 - 新增功能
+   * @param {File} imageFile - 人脸图片文件
+   * @param {Object} styleganParams - StyleGAN2参数
+   * @param {string} styleganApiUrl - StyleGAN2服务API地址
+   * @returns {Promise<Object>} 处理结果
+   */
+  async styleGAN2Edit(imageFile, styleganParams = {}, styleganApiUrl) {
+    if (!imageFile) {
+      throw new Error('请提供人脸图片文件')
+    }
+
+    if (!imageFile.type.startsWith('image/')) {
+      throw new Error('文件必须是图片格式')
+    }
+
+    if (!styleganApiUrl) {
+      throw new Error('StyleGAN2服务地址未配置')
+    }
+
+    // 构建FormData参数
+    const formData = new FormData()
+    formData.append('file', imageFile)
+    
+    // 生成器参数
+    if (styleganParams.selectedGenerator) {
+      formData.append('generator_name', styleganParams.selectedGenerator)
+    }
+    
+    // 方向向量目录
+    if (styleganParams.directionsDir) {
+      formData.append('directions_dir', styleganParams.directionsDir)
+    }
+    
+    // 编码器配置（JSON字符串）
+    if (styleganParams.encoderConfig) {
+      formData.append('encoder_config', JSON.stringify(styleganParams.encoderConfig))
+    }
+    
+    // 编辑属性（JSON字符串）
+    if (styleganParams.editAttributes) {
+      formData.append('edit_attributes', JSON.stringify(styleganParams.editAttributes))
+    }
+
+    // 可选参数：是否保存临时文件
+    if (styleganParams.saveTemp !== undefined) {
+      formData.append('save_temp', styleganParams.saveTemp.toString())
+    }
+
+    // 调用StyleGAN2 API
+    return await this.callAPI('/edit', formData, {
+      timeout: 120000,  // StyleGAN2处理时间较长，设置2分钟超时
+      baseUrl: styleganApiUrl
+    })
+  }
+
+  /**
+   * StyleGAN2服务健康检查 - 新增功能
+   * @param {string} styleganApiUrl - StyleGAN2服务API地址
+   * @returns {Promise<Object>} 服务状态
+   */
+  async styleGAN2HealthCheck(styleganApiUrl) {
+    try {
+      const response = await fetch(`${styleganApiUrl}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000)
+      })
+      
+      if (response.ok) {
+        return await response.json()
+      } else {
+        throw new Error('StyleGAN2服务不可用')
+      }
+    } catch (error) {
+      throw new Error(error.name === 'TimeoutError' ? 'StyleGAN2服务连接超时' : 'StyleGAN2服务离线')
+    }
+  }
+
+  /**
+   * 获取StyleGAN2系统状态 - 新增功能
+   * @param {string} styleganApiUrl - StyleGAN2服务API地址
+   * @returns {Promise<Object>} 系统状态
+   */
+  async getStyleGAN2SystemStatus(styleganApiUrl) {
+    try {
+      const response = await fetch(`${styleganApiUrl}/system-status`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(10000)
+      })
+      
+      if (!response.ok) {
+        throw new Error('获取StyleGAN2系统状态失败')
+      }
+      
+      return await response.json()
+    } catch (error) {
+      throw new Error(error.name === 'TimeoutError' ? 'StyleGAN2系统状态获取超时' : error.message)
+    }
+  }
+
+  /**
+   * 获取StyleGAN2可用属性列表 - 新增功能
+   * @param {string} styleganApiUrl - StyleGAN2服务API地址
+   * @returns {Promise<Object>} 可用属性列表
+   */
+  async getStyleGAN2Attributes(styleganApiUrl) {
+    try {
+      const response = await fetch(`${styleganApiUrl}/attributes`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000)
+      })
+      
+      if (!response.ok) {
+        throw new Error('获取StyleGAN2属性列表失败')
+      }
+      
+      return await response.json()
+    } catch (error) {
+      throw new Error(error.name === 'TimeoutError' ? 'StyleGAN2属性列表获取超时' : error.message)
+    }
+  }
+
+  /**
+   * 清理StyleGAN2缓存 - 新增功能
+   * @param {string} styleganApiUrl - StyleGAN2服务API地址
+   * @param {string} cacheType - 缓存类型 ('all' | 'latent')
+   * @returns {Promise<Object>} 操作结果
+   */
+  async cleanupStyleGAN2Cache(styleganApiUrl, cacheType = 'all') {
+    try {
+      const endpoint = cacheType === 'latent' ? '/cleanup-latent' : '/cleanup'
+      const response = await fetch(`${styleganApiUrl}${endpoint}`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(30000)
+      })
+      
+      if (!response.ok) {
+        throw new Error('StyleGAN2缓存清理失败')
+      }
+      
+      return await response.json()
+    } catch (error) {
+      throw new Error(error.name === 'TimeoutError' ? 'StyleGAN2缓存清理超时' : error.message)
+    }
+  }
+
+  /**
+   * 轻美颜处理 - 现有功能
+   * @param {File} imageFile - 人脸图片文件
+   * @param {Object} adjustmentParams - 调整参数
+   * @param {string} facialApiUrl - 轻美颜服务API地址
+   * @returns {Promise<Object>} 处理结果
+   */
+  async facialAdjustment(imageFile, adjustmentParams = {}, facialApiUrl) {
+    if (!imageFile) {
+      throw new Error('请提供人脸图片文件')
+    }
+
+    if (!imageFile.type.startsWith('image/')) {
+      throw new Error('文件必须是图片格式')
+    }
+
+    if (!facialApiUrl) {
+      throw new Error('轻美颜服务地址未配置')
+    }
+
+    // 构建FormData参数
+    const formData = new FormData()
+    formData.append('file', imageFile)
+    
+    // 7种功能的参数映射
+    const features = ['chin', 'eye_adjust', 'face_slim', 'forehead', 'mouth', 'nose', 'whitening']
+    
+    features.forEach(feature => {
+      const enabled = adjustmentParams[`${feature}_enabled`] || false
+      const intensity = adjustmentParams[`${feature}_intensity`] || 0.3
+      
+      formData.append(`${feature}_enabled`, enabled.toString())
+      formData.append(`${feature}_intensity`, intensity.toString())
+      
+      // 特殊参数处理
+      if (feature === 'chin' && adjustmentParams.chin_type) {
+        formData.append('chin_type', adjustmentParams.chin_type)
+      } else if (feature === 'eye_adjust' && adjustmentParams.eye_adjust_mode) {
+        formData.append('eye_adjust_mode', adjustmentParams.eye_adjust_mode)
+      } else if (feature === 'face_slim' && adjustmentParams.face_slim_region) {
+        formData.append('face_slim_region', adjustmentParams.face_slim_region)
+      } else if (feature === 'forehead' && adjustmentParams.forehead_type) {
+        formData.append('forehead_type', adjustmentParams.forehead_type)
+      } else if (feature === 'mouth' && adjustmentParams.mouth_type) {
+        formData.append('mouth_type', adjustmentParams.mouth_type)
+      } else if (feature === 'nose' && adjustmentParams.nose_type) {
+        formData.append('nose_type', adjustmentParams.nose_type)
+      } else if (feature === 'whitening' && adjustmentParams.whitening_region) {
+        formData.append('whitening_region', adjustmentParams.whitening_region)
+      }
+    })
+
+    // 调用轻美颜API
+    return await this.callAPI('/process', formData, {
+      timeout: 60000,
+      baseUrl: facialApiUrl  // 使用轻美颜服务的API地址
+    })
+  }
+
+  /**
+   * 轻美颜服务健康检查 - 现有功能
+   * @param {string} facialApiUrl - 轻美颜服务API地址
+   * @returns {Promise<Object>} 服务状态
+   */
+  async facialHealthCheck(facialApiUrl) {
+    try {
+      const response = await fetch(`${facialApiUrl}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000)
+      })
+      
+      if (response.ok) {
+        return await response.json()
+      } else {
+        throw new Error('轻美颜服务不可用')
+      }
+    } catch (error) {
+      throw new Error(error.name === 'TimeoutError' ? '轻美颜服务连接超时' : '轻美颜服务离线')
+    }
   }
 
   /**
@@ -238,6 +466,12 @@ class ImageAPIService {
             break
           case 'super-resolution':
             result = await this.superResolution(file, params.scale)
+            break
+          case 'facial-adjustment':  // 轻美颜批量处理
+            result = await this.facialAdjustment(file, params.adjustmentParams, params.facialApiUrl)
+            break
+          case 'stylegan2-edit':  // 新增：StyleGAN2批量处理
+            result = await this.styleGAN2Edit(file, params.styleganParams, params.styleganApiUrl)
             break
           default:
             throw new Error(`不支持的处理类型: ${processType}`)

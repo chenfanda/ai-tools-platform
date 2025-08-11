@@ -50,44 +50,26 @@ const PageSidebar = ({ currentPage, activeSubPage, onSubPageChange }) => {
         }
       ]
     },
-    image: {
+   image: {
       title: '图像处理',
       items: [
         { 
-          id: 'remove-bg', 
-          label: '背景移除', 
+          id: 'basic-tools',
+          label: '基础图像工具', 
           icon: '🔧', 
-          description: '智能移除图片背景' 
+          description: '背景处理、分辨率增强等基础功能' 
         },
         { 
-          id: 'face-enhance', 
-          label: '人脸增强', 
+          id: 'face-beauty',
+          label: '轻美颜', 
           icon: '✨', 
-          description: 'AI人脸美化增强' 
+          description: '7种人脸精细调整，自然美化效果' 
         },
         { 
-          id: 'super-resolution', 
-          label: '超分辨率', 
-          icon: '🔍', 
-          description: '提升图像清晰度' 
-        },
-        { 
-          id: 'change-bg', 
-          label: '智能换背景', 
-          icon: '🌅', 
-          description: '自动抠图更换背景' 
-        },
-        { 
-          id: 'style-transfer', 
-          label: '风格转换', 
+          id: 'face-stylization',
+          label: '人脸风格化', 
           icon: '🎨', 
-          description: 'AI艺术风格转换' 
-        },
-        { 
-          id: 'object-removal', 
-          label: '物体移除', 
-          icon: '🗑️', 
-          description: '智能物体擦除' 
+          description: '人脸风格转换' 
         }
       ]
     }
