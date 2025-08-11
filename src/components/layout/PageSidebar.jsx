@@ -18,6 +18,12 @@ const PageSidebar = ({ currentPage, activeSubPage, onSubPageChange }) => {
           label: '语音识别', 
           icon: '📝', 
           description: '音频转文字，支持多种语言识别' 
+        },
+        {
+          id: 'multi-character-dubbing',
+          label: '多角色配音', 
+          icon: '🎭',
+          description: '时间轴多角色对话配音，支持角色库和自定义录音'
         }
       ]
     },
