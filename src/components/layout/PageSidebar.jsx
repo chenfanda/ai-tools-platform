@@ -78,6 +78,71 @@ const PageSidebar = ({ currentPage, activeSubPage, onSubPageChange }) => {
           description: '人脸风格转换' 
         }
       ]
+    },
+    media: {
+      title: '多媒体处理',
+      items: [
+        { 
+          id: 'extract-audio', 
+          label: '音频提取', 
+          icon: '🎵', 
+          description: '从视频中提取音频文件' 
+        },
+        { 
+          id: 'audio-separate', 
+          label: '音频分离', 
+          icon: '🎼', 
+          description: '分离人声和背景音乐' 
+        },
+        { 
+          id: 'video-dubbing', 
+          label: '视频配音', 
+          icon: '🎤', 
+          description: '为视频添加音频配音' 
+        },
+        { 
+          id: 'add-subtitles', 
+          label: '添加字幕', 
+          icon: '📝', 
+          description: '为视频添加字幕文件' 
+        },
+        { 
+          id: 'video-trim', 
+          label: '视频剪辑', 
+          icon: '✂️', 
+          description: '裁剪视频片段' 
+        },
+        { 
+          id: 'audio-trim', 
+          label: '音频剪辑', 
+          icon: '🎯', 
+          description: '裁剪音频片段' 
+        },
+        { 
+          id: 'video-merge', 
+          label: '视频合并', 
+          icon: '🔗', 
+          description: '合并多个视频文件' 
+        },
+        { 
+          id: 'audio-merge', 
+          label: '音频合并', 
+          icon: '🎵', 
+          description: '合并多个音频文件' 
+        },
+        { 
+          id: 'remove-subtitles', 
+          label: '去除字幕', 
+          icon: '🚫', 
+          description: '移除视频中的嵌入字幕' 
+        },
+        { 
+          id: 'audio-text-align', 
+          label: '音频字幕对齐', 
+          icon: '⏱️', 
+          description: '为音频生成精确时间戳字幕' 
+        }
+      ]
     }
   }
 

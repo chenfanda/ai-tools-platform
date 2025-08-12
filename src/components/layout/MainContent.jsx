@@ -5,17 +5,19 @@ import TTSPage from '@/pages/tts'
 import VideoPage from '@/pages/video'
 import ImagePage from '@/pages/image'
 import PageSidebar from './PageSidebar'
+import MediaPage from '@/pages/media' 
 
 const MainContent = ({ currentPage, config, onNotification }) => {
   // 子页面状态管理
   const [subPages, setSubPages] = useState({
     tts: 'voice-synthesis',     // TTS默认显示语音合成
     video: 'standard-video',    // Video默认显示标准视频
-    image: 'basic-tools'        // ✅ 修改：basic-tools
+    image: 'basic-tools',       // ✅ 修改：basic-tools
+    media: 'extract-audio' 
   })
 
   // 需要侧边栏的页面
-  const pagesWithSidebar = ['tts', 'video', 'image']
+  const pagesWithSidebar = ['tts', 'video', 'image','media']
   const hasSidebar = pagesWithSidebar.includes(currentPage)
 
   // 子页面切换处理
@@ -79,6 +81,14 @@ const MainContent = ({ currentPage, config, onNotification }) => {
           >
             <ImagePage {...pageProps} />
           </div>
+        
+          {/* 多媒体处理页面 - 有侧边栏 */}
+            <div 
+              style={{ display: currentPage === 'media' ? 'block' : 'none' }}
+              className="animate-fade-in"
+            >
+              <MediaPage {...pageProps} />
+            </div>
         </div>
       </div>
     </div>

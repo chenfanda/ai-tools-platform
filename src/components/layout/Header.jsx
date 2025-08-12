@@ -11,7 +11,8 @@ const Header = ({
     { id: 'home', label: '首页' },
     { id: 'tts', label: '语音模块' },
     { id: 'video', label: '视频生成' },
-    { id: 'image', label: '图像处理' }
+    { id: 'image', label: '图像处理' },
+    { id: 'media', label: '多媒体处理' }
   ]
 
   return (

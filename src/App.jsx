@@ -16,7 +16,8 @@ function App() {
     asrApiUrl: isProduction ? 'https://asr-api.181901.xyz' : 'http://localhost:8002',
     imageApiUrl: isProduction ? 'https://images-api.181901.xyz' : 'http://localhost:8003',
     facialApiUrl: isProduction ? 'https://facial-api.181901.xyz' : 'http://localhost:8004',
-    styleganApiUrl: isProduction ? 'https://stylegan-api.181901.xyz' : 'http://localhost:8005'
+    styleganApiUrl: isProduction ? 'https://stylegan-api.181901.xyz' : 'http://localhost:8005',
+    mediaApiUrl: isProduction ? 'https://media-api.181901.xyz' : 'http://localhost:8006'
   })
   // const [config, setConfig] = useState({
   //   ttsApiUrl: 'http://localhost:8000',
@@ -83,7 +84,7 @@ function App() {
       // Ctrl/Cmd + 数字键切换页面
       if ((event.ctrlKey || event.metaKey) && event.key >= '1' && event.key <= '5') {
         event.preventDefault()
-        const pages = ['home', 'tts', 'video', 'asr', 'image']
+        const pages = ['home', 'tts', 'video', 'asr', 'image','media']
         const pageIndex = parseInt(event.key) - 1
         if (pages[pageIndex]) {
           setCurrentPage(pages[pageIndex])
